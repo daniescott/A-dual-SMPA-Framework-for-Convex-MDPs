@@ -1,0 +1,3 @@
+[submodule "implementations/clean_spma"]
+	path = implementations/clean_spma
+	url = https://github.com/sudo-michael/clean_spma
