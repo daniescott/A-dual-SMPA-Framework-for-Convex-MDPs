@@ -92,11 +92,11 @@ where `Δlog π = log π_new - log π_old` and `A` is the advantage function.
 
 ### Core Capabilities
 
-- ✅ **SPMA Policy Oracle**: Theoretically-grounded policy improvement
-- ✅ **Dual Variable Updates**: Constraint enforcement through gradient ascent
-- ✅ **Armijo Line Search**: Robust step size selection with backtracking
-- ✅ **GAE (Generalized Advantage Estimation)**: Low-variance advantage estimates
-- ✅ **Shaped Reward Environments**: Automatic reward transformation for constrained optimization
+-  **SPMA Policy Oracle**: Theoretically-grounded policy improvement
+-  **Dual Variable Updates**: Constraint enforcement through gradient ascent
+-  **Armijo Line Search**: Robust step size selection with backtracking
+-  **GAE (Generalized Advantage Estimation)**: Low-variance advantage estimates
+-  **Shaped Reward Environments**: Automatic reward transformation for constrained optimization
 
 ### Supported Settings
 
@@ -568,7 +568,7 @@ python -m pytest tests/
 ## References
 
 ### Key Papers
-
+<!-- 
 1. **Mirror Descent in Saddle-Point Problems**  
    Nemirovski, A. (2004). *Prox-method with rate of convergence O(1/t) for variational inequalities with Lipschitz continuous monotone operators and smooth convex-concave saddle point problems.*
 
@@ -586,7 +586,7 @@ python -m pytest tests/
 - **PPO (Proximal Policy Optimization)**: Trust-region-free policy optimization
 - **TRPO (Trust Region Policy Optimization)**: Natural gradient with KL constraint
 - **CPO (Constrained Policy Optimization)**: Safe RL with hard constraints
-- **Lagrangian Methods**: Primal-dual approaches for constrained optimization
+- **Lagrangian Methods**: Primal-dual approaches for constrained optimization -->
 
 ---
 
@@ -596,32 +596,7 @@ This project is part of CMPT409 coursework. Please check with the course instruc
 
 ---
 
-## Contact
-
-For questions or issues, please open an issue on GitHub or contact the project maintainers.
-
----
-
 ## Acknowledgments
 
-- **Anthropic**: For theoretical guidance on convex optimization methods
-- **OpenAI Gymnasium**: For standardized RL environments
-- **PyTorch**: For efficient neural network training
-- **CMPT409 Course Staff**: For project supervision and support
-
 ---
 
-## Future Work
-
-- [ ] Implement full constraint handling with multiple constraints
-- [ ] Add adaptive step size selection for dual updates
-- [ ] Extend to multi-agent CMDPs
-- [ ] Benchmark against CPO and other safe RL baselines
-- [ ] Add visualization tools for policy and occupancy
-- [ ] Implement variance reduction techniques (importance sampling, baseline)
-- [ ] Support for model-based variants
-- [ ] Integration with popular RL libraries (Stable-Baselines3, RLlib)
-
----
-
-**Happy Optimizing! 🚀**
