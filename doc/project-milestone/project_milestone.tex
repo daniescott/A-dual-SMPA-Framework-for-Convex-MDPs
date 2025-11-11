@@ -30,7 +30,7 @@
 
 \author{
 Shervin Khamooshian \quad Ahmed Magd \quad Pegah Aryadoost \quad Danielle Nguyen\\
-Simon Fraser University \qquad \texttt{\{ska309, ams80, paa40, tdSn8\}@sfu.ca}
+Simon Fraser University \qquad \texttt{\{ska309, ams80, paa40, tdn8\}@sfu.ca}
 }
 
 \begin{document}
@@ -136,7 +136,7 @@ Zahavy et~al.\ provide the \emph{formulation and outer-loop template} (Fenchel s
 \textbf{Work} & \textbf{Objective / Saddle} & \textbf{Policy Player} & \textbf{Guarantees / Notes} \\
 \midrule
 Zahavy et al.\ (2021) \citep{zahavy2021reward} & $\min_{d} f(d)$; Fenchel dual $\min_d \max_\lambda \lambda\!\cdot\! d - f^{*}(\lambda)$ & Best response / low-regret RL under $r_\lambda=-\lambda$ & $O(1/\sqrt{K})$ via OCO; unifies AL, CMDPs, exploration \\[6pt]
-Asad et al.\ (2025) \citep{asad2024fast} & RL inner step (fixed $y$) & SPMA: $\pi_{t+1}=\pi_t(1+\eta A)$; FA via convex projection & Linear (tabular); neighbourhood (FA); strong empirical results \\[6pt]
+Asad et al.\ (2024) \citep{asad2024fast} & RL inner step (fixed $y$) & SPMA: $\pi_{t+1}=\pi_t(1+\eta A)$; FA via convex projection & Linear (tabular); neighbourhood (FA); strong empirical results \\[6pt]
 Ding et al.\ (2020) \citep{ding2020npgpd} & Lagrangian CMDP $\max_\pi \min_{\lambda\ge0} V_r^\pi+\lambda(V_g^\pi-b)$ & NPG for $\pi$, projected subgradient for $\lambda$ & Dimension-free $O(1/\sqrt{T})$ gap \& violation (avg.) \\
 \bottomrule
 \end{tabular}
