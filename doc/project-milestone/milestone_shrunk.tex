@@ -109,21 +109,22 @@ Figure~\ref{fig:convex_mdp_game} illustrates this as a two-player game where the
 
 % =================== Paper 2 ====================================
 \section*{Paper 2: \emph{Fast Convergence of Softmax Policy Mirror Ascent} (OPT 2024 / arXiv 2025)}
-\textbf{Core idea.} \emph{SPMA} performs mirror ascent in \emph{logit} space using the log-sum-exp mirror map. In tabular MDPs the per-state update
+\textbf{Core idea.} \emph{SPMA} performs mirror ascent in \emph{logit} space using the log-sum-exp mirror map, in contrast to NPG which uses exponential reweighting in probability space (Sec.~3.2). In tabular MDPs the per-state update (Eq.~3)
 $\pi_{t+1}(a|s)=\pi_t(a|s)\bigl(1+\eta\,A^{\pi_t}(s,a)\bigr)$
-avoids explicit normalization and achieves \emph{linear convergence} for sufficiently small constant step-size, improving over softmax PG. For large problems, SPMA projects onto function classes via convex \emph{softmax classification} subproblems and proves linear convergence to a neighbourhood under FA; empirically it competes with PPO/TRPO/MDPO. \citep{asad2024fast}
+avoids explicit normalization and achieves \emph{linear convergence} for sufficiently small constant step-size: bandit linear convergence (Thm.~1) and tabular MDP linear convergence to the optimal value (Thm.~2), improving over softmax PG (Sec.~3.3). For large problems, SPMA projects onto function classes via convex \emph{softmax classification} subproblems (Eq.~4--5, Algorithm~1) and proves linear convergence to a neighbourhood under FA (Sec.~4); the theory assumes exact or low-noise gradients, and performance depends on advantage-estimation quality (Sec.~4.2). Empirically it competes with PPO/TRPO/MDPO (Sec.~4.1). \citep{asad2024fast}
 
-\textbf{Relevance.} We need a strong policy ``best response'' in Zahavy's saddle; SPMA provides the geometry and rates, and its FA projection matches our shaped-reward reduction.
+\textbf{Relevance.} We need a strong policy ``best response'' in Zahavy's saddle; SPMA provides the geometry and fast rates in tabular settings, plus a practical FA implementation (convex surrogates that fit deep RL) matching our shaped-reward reduction.
 
 % =================== Paper 3 ====================================
-
 \section*{Paper 3: \emph{Natural Policy Gradient Primal--Dual for CMDPs} (NeurIPS 2020)}
-\textbf{Core idea.} A policy-based primal--dual method: \emph{natural policy gradient} (NPG) ascent for the policy and projected subgradient updates for the multiplier. Despite nonconcavity/nonconvexity under softmax parameterization, it proves \emph{dimension-free} $O(1/\sqrt{T})$ bounds on averaged optimality gap and constraint violation; with FA, rates hold up to an approximation neighbourhood; sample-based variants have finite-sample guarantees. \citep{ding2020npgpd}
+\textbf{Core idea.} A policy-based primal--dual method for the Lagrangian CMDP formulation $V_r^\pi(\rho)+\lambda(V_g^\pi(\rho)-b)$: \emph{natural policy gradient} (NPG) ascent for the policy and projected subgradient updates for the multiplier (Eq.~7--8, Sec.~3--4), showing a multiplicative update for softmax policies and projection for $\lambda$. Despite nonconcavity/nonconvexity under softmax parameterization, it proves \emph{dimension-free} $O(1/\sqrt{T})$ bounds on averaged optimality gap and constraint violation (Thm.~1, Eq.~9a--9b) under Slater's condition; with FA, rates hold up to an approximation neighbourhood (Sec.~5, Thm.~3); sample-based variants have finite-sample guarantees (Thm.~4). \citep{ding2020npgpd}
 
-\textbf{Relevance.} NPG--PD is our principled CMDP baseline for both guarantees and practice; we compare Dual--SPMA against it in convergence/violation/sample-efficiency.
+\textbf{Relevance.} NPG--PD is our principled CMDP baseline for both guarantees and practice: we compare Dual--SPMA (Fenchel saddle + SPMA policy player) against NPG--PD (Lagrangian saddle + NPG) in terms of geometry (logit-space vs.\ probability-space), convergence rates, constraint violation, and sample-efficiency.
 
 \section*{How the three fit together (and into our project)}
-Zahavy et~al.\ provide the \emph{formulation and outer-loop template} (Fenchel saddle; shaped-reward RL). SPMA supplies a \emph{fast policy player} for that RL step (mirror ascent in logits; linear rates; FA via convex classification). NPG--PD offers a \emph{policy-based CMDP baseline} with sublinear but dimension-free guarantees. Our project implements the Dual--SPMA solver by alternating dual mirror-ascent on $y$ with an SPMA step on the $r_y$-shaped RL task and evaluates against NPG--PD.
+Zahavy et~al.\ provide the \emph{formulation and outer-loop template} (Fenchel saddle; shaped-reward RL). SPMA supplies a \emph{fast policy player} for that RL step (mirror ascent in logits; linear rates; FA via convex classification). NPG--PD offers a \emph{policy-based CMDP baseline} with sublinear but dimension-free guarantees. 
+
+\textbf{Our implementation.} Building on Zahavy's formulation, we alternate a dual step $y_{k+1}\!\leftarrow\!\mathrm{MA}\!\left(y_k,\,\hat{d}_{\pi_k}-\nabla f^*(y_k)\right)$ with a policy step that runs SPMA on the shaped reward $r_{y_k}=-y_k$, returning discounted occupancies $\hat{d}_{\pi_k}$ (or feature expectations) for the next dual update. We will benchmark this Dual--SPMA against NPG--PD, focusing on convergence speed, constraint satisfaction, and sample efficiency.
 
 % FIXED TABLE - using proper p{} columns instead of tabularx
 \begin{table}[t]
