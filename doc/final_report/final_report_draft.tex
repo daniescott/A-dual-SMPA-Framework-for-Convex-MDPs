@@ -1,0 +1,123 @@
+\documentclass{article}
+\usepackage[final]{neurips_2022}
+\usepackage[]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{microtype}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{bm}
+\usepackage{booktabs}
+\usepackage{graphicx}
+% \usepackage[numbers]{natbib}
+
+% Handy macros
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\KL}{\mathrm{KL}}
+\newcommand{\inner}[2]{\left\langle #1, #2 \right\rangle}
+
+\title{Project Report --- A Dual--SPMA Framework for Convex MDPs}
+
+\author{
+Shervin Khamooshian \And Ahmed Magd \And Pegah Aryadoost \And Danielle Nguyen\\
+School of Computing Science, Simon Fraser University\\
+\texttt{\{ska309,ams80,paa40,tdn8\}@sfu.ca}
+}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We study a practical solver for Convex MDPs that combines a Fenchel--dual reformulation with a fast policy optimizer, Softmax Policy Mirror Ascent (SPMA). Fixing the dual variable yields a shaped-reward RL subproblem; SPMA serves as the policy player. We compare against a principled CMDP baseline, Natural Policy Gradient Primal--Dual (NPG--PD). We outline our method, experimental plan, and ablations, and provide early results placeholders.
+\end{abstract}
+
+\section{Introduction}
+Convex MDPs (cMDPs) extend standard RL to objectives that are convex in the discounted occupancy measure $d^\pi$. Many problems (constrained RL, imitation, exploration) fit this form but are hard to optimize directly over $d^\pi$. Following \citet{zahavy2021reward}, we use Fenchel duality to obtain a \emph{policy--cost} saddle formulation and then solve the policy step with SPMA \citep{asad2024fast}. We compare to NPG--PD, a policy-based CMDP method with non-asymptotic guarantees \citep{ding2020npgpd}.
+
+\paragraph{Contributions (draft).}
+(i) Implement an outer--inner Dual--SPMA loop that reduces cMDPs to shaped-reward RL; (ii) instantiate SPMA as the policy player (tabular and linear FA) and dual updates via OMD/FTL; (iii) evaluate against NPG--PD on constrained tasks with convergence, violation, and efficiency metrics.
+
+\section{Related Work}
+\textbf{Convex MDPs via Fenchel duality.} \citet{zahavy2021reward} reformulate $\min_{d\in K}f(d)$ as a saddle $\min_{\pi}\max_{y}\{\inner{y}{d^\pi}-f^\ast(y)\}$ and propose a meta-algorithm alternating a cost player (FTL/OMD) with a policy player (standard RL under $r_y=-y$). \textbf{Policy optimization geometry.} SPMA performs mirror ascent in logit space and achieves linear convergence in tabular MDPs; with FA it uses a convex softmax classification projection \citep{asad2024fast}. \textbf{CMDP primal--dual.} NPG--PD updates policy by natural PG and multipliers by projected subgradient, with $O(1/\sqrt{T})$ averaged gap/violation guarantees \citep{ding2020npgpd}.
+
+\section{Preliminaries}
+\paragraph{MDP and occupancies.} For discounted MDP $(\mathcal{S},\mathcal{A},P,\rho,\gamma)$,
+\begin{equation}
+d^\pi(s,a)=(1-\gamma)\sum_{t=0}^\infty \gamma^t\,\Pr_\pi(s_t=s,a_t=a),\quad
+K=\{d\ge0: \text{flow constraints hold}\}.
+\end{equation}
+\paragraph{Convex MDP.} We seek $\min_{d\in K} f(d)$ where $f:K\to\R$ is convex. Using the Fenchel conjugate $f^\ast$, the problem equals
+\begin{equation}
+\min_{\pi}\max_{y}\; L(\pi,y):=\inner{y}{d^\pi}-f^\ast(y),
+\end{equation}
+and for fixed $y$ the policy subproblem is standard RL with shaped reward $r_y=-y$ (or $r_y(s,a)=-\phi(s,a)^\top y$ under features) \citep{zahavy2021reward}.
+
+\section{Method: Dual--SPMA}
+\paragraph{Outer (dual) update.} Given estimate $\hat d^{\,\pi_t}$ or $\widehat{\E}[\phi]$, update $y$ via OMD or FTL:
+\begin{align}
+\text{OMD: }& y_{t+1}=\arg\max_{y}\;\big\langle y-y_t,\;\hat d^{\,\pi_t}-\nabla f^\ast(y_t)\big\rangle - \tfrac{1}{\eta_2}B_r(y,y_t),\\
+\text{FTL: }& y_{t+1}=\nabla f\!\left(\tfrac{1}{t}\sum_{k=1}^t \hat d^{\,\pi_k}\right).
+\end{align}
+\paragraph{Inner (policy) update via SPMA.} For tabular policies and step-size $\eta\le 1-\gamma$,
+\begin{equation}
+\pi_{t+1}(a|s)=\pi_t(a|s)\bigl(1+\eta\,A_{\pi_t}^{(r_y)}(s,a)\bigr),
+\end{equation}
+and under log-linear FA we project the ideal tabular step back into the class via convex softmax classification \citep{asad2024fast}.
+
+\paragraph{Estimators.} In tabular settings we estimate $d^\pi$ from finite-horizon rollouts; under FA we estimate feature expectations $\E_{d^\pi}[\phi]$ (Appendix~\ref{app:occ}).
+
+\paragraph{Algorithm (sketch).} Alternate $K$ outer dual steps with $m$ inner SPMA steps per outer iteration; return averaged iterates $(\bar\pi,\bar y)$.
+
+\section{Baseline: NPG--PD for CMDPs}
+We implement NPG--PD with softmax policies: natural PG ascent on $\pi$, projected subgradient on $\lambda$ in the Lagrangian $V^\pi_r(\rho)+\lambda(V^\pi_g(\rho)-b)$; report averaged optimality gap and constraint violation as in \citet{ding2020npgpd}.
+
+\section{Experimental Setup}
+\paragraph{Environments.} Small tabular MDPs (grid/chain) with constraints or imitation; linear-feature variants for FA.
+\paragraph{Metrics.} (i) Saddle $L(\pi,y)$ (when $f^\ast$ known); (ii) constraint value/violation; (iii) return under $r_y$; (iv) convergence of $\|d^\pi\|_1$ (tabular) or $\|\E[\phi]\|$ (FA); (v) wall-clock/sample efficiency.
+\paragraph{Baselines.} NPG--PD; (optional) PPO/TRPO/MDPO for context.
+\paragraph{Hyperparameters.} Dual step $\eta_2$, SPMA step $\eta$, inner steps $m$, rollout lengths, seeds (Appendix~\ref{app:hypers}).
+
+\section{Results (placeholders)}
+\paragraph{Main comparisons.} Dual--SPMA vs NPG--PD: convergence of $L(\pi,y)$, constraint violation, sample efficiency.
+\paragraph{Ablations.} OMD vs FTL; impact of $m$ and $\eta$; tabular vs FA.
+\paragraph{Analysis.} Stability, estimator variance, effect of dual regularization.
+
+\section{Discussion}
+When does Dual--SPMA help (simple inner loops, convex FA projection) and when does NPG--PD remain preferable (tight constraint control, established guarantees)?
+
+\section{Limitations and Future Work}
+Occupancy/feature estimation variance; coupling of inner/outer steps; FA bias. Next steps: variance reduction, neural FA, robust costs.
+
+\section{Conclusion}
+Dual--SPMA is a simple outer--inner approach to cMDPs that leverages shaped-reward RL and a fast policy optimizer. Early experiments (to be inserted) indicate competitive performance with NPG--PD on constrained tasks.
+
+\paragraph{Reproducibility.} Code, configs, and scripts to regenerate figures will be released with the final report.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+
+\appendix
+
+% \section{Discounted occupancies and feature expectations}
+% \label{app:occ}
+% \paragraph{Discounted occupancy (finite horizon estimate).} With horizon $H$, trajectories $\{\tau_i\}_{i=1}^N$:
+% \begin{equation}
+% \hat d^\pi(s,a)=\frac{1}{N}\sum_{i=1}^N\sum_{t=0}^{H-1}\gamma^t\,\mathbf{1}[s_t^{(i)}{=}s,a_t^{(i)}{=}a]\cdot \frac{1-\gamma}{1-\gamma^H}.
+% \end{equation}
+% \paragraph{Feature expectations.} $\widehat{\E}[\phi]=\tfrac{1}{N}\sum_{i=1}^N\sum_{t=0}^{H-1}\gamma^t\,\phi(s_t^{(i)},a_t^{(i)})\cdot \tfrac{1-\gamma}{1-\gamma^H}$.
+
+% \section{Algorithmic details (pseudocode)}
+% \label{app:algo}
+% \textbf{Dual--SPMA (outer--inner) sketch.}
+% \begin{enumerate}
+%   \item Initialize $y_1$, policy $\pi_1$.
+%   \item For $k=1,\dots,K$: (a) run $m$ SPMA steps on shaped reward $r_{y_k}$ to obtain $\pi_{k+1}$; (b) estimate $\hat d^{\,\pi_{k+1}}$ or $\widehat{\E}[\phi]$; (c) update $y_{k+1}$ by OMD/FTL.
+%   \item Return averages $(\bar\pi,\bar y)$.
+% \end{enumerate}
+
+% \section{Hyperparameters and compute}
+% \label{app:hypers}
+% Report $\gamma$, horizons, batch sizes, learning rates, $m$, seeds, and compute budget. Include a table for reproducibility.
+
+\end{document}

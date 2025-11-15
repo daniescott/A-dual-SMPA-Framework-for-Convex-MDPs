@@ -57,7 +57,7 @@ y_{k+1}\!\leftarrow\!\text{MA}\!\left(y_k,\,\hat{d}_{\pi_k}-\nabla f^*(y_k)\righ
 \] 
 with a policy step that runs SPMA on the shaped reward $r_{y_k}=-y_k$, returning discounted occupancies $\hat{d}_{\pi_k}$ (or feature expectations) for the next dual update (Fig.~\ref{fig:dualspma}). We will benchmark this Dual--SPMA against NPG--PD, focusing on convergence speed, constraint satisfaction, and sample efficiency.
 
-\begin{figure}[t]
+\begin{figure}[htbp]
 \centering
 \begin{tikzpicture}[node distance=1cm, >=Latex, scale=0.9, transform shape]
 \node[draw, rounded corners, align=center, inner sep=3pt, font=\small] (cost) {Cost player\\$y_k$};
@@ -90,7 +90,7 @@ so for fixed $\lambda$ the policy subproblem is vanilla RL with shaped reward $r
 
 Figure~\ref{fig:convex_mdp_game} illustrates this as a two-player game where the agent sees non-stationary rewards from the cost player. A meta-algorithm (Algorithm~\ref{alg:convex_mdp_meta}) alternates a \emph{cost player} (FTL/OMD in $\lambda$, a convex ascent step) with a \emph{policy player} (best response or low-regret RL), yielding $O(1/\sqrt{K})$ optimization error for averaged iterates under standard OCO assumptions. The paper shows best-response is ideal but often intractable in deep RL, so low-regret learners (e.g., UCRL2, MDPO) suffice; the guarantees hold for averaged occupancies $\bar{d}_\pi^K$ rather than single iterates. It unifies apprenticeship learning, CMDPs and pure exploration (Table~\ref{tab:convex_mdp_examples}). \citep{zahavy2021reward}
 
-\begin{figure}[t]
+\begin{figure}[htbp]
 \centering
 \begin{tikzpicture}[
     node distance=1.5cm,
@@ -123,7 +123,7 @@ Figure~\ref{fig:convex_mdp_game} illustrates this as a two-player game where the
 \KwOut{$\bar{d}_\pi^K = \frac{1}{K}\sum_{k=1}^K d_\pi^k$, $\bar{\lambda}^K = \frac{1}{K}\sum_{k=1}^K \lambda^k$}
 \end{algorithm}
 
-\begin{table}[t]
+\begin{table}[htbp]
 \centering
 \caption{Instantiations of the convex MDP framework (adapted from \citet{zahavy2021reward}, Table~1).}
 \label{tab:convex_mdp_examples}

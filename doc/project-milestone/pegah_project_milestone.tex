@@ -14,125 +14,108 @@
 \usepackage{microtype}      % microtypography
 \usepackage{xcolor}         % colors
 
+% Floats/graphics
+\usepackage{caption}
+\captionsetup{font=small}
+\setlength{\textfloatsep}{6pt plus 2pt minus 2pt}
+\setlength{\abovecaptionskip}{3pt}
+\setlength{\belowcaptionskip}{0pt}
+\usepackage{placeins}
+
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta}
 
 \DeclareMathOperator*{\argmin}{arg\,min}
 \DeclareMathOperator*{\argmax}{arg\,max}
 
-\title{Project Title}
+\title{A Dual-SPMA Framework for Convex MDPs}
 
-\author{%
-  Author 1 \\
-  \texttt{Email} \\
-  % \And
-  % Coauthor \\
-  % Affiliation \\
-  % \texttt{email} \\
+\author{
+Shervin Khamooshian \quad Ahmed Magd \quad Pegah Aryadoost \quad Danielle Nguyen\\
+Simon Fraser University \\ \texttt{\{ska309, ams80, paa40, tdn8\}@sfu.ca}
 }
 
 \begin{document}
 
 \maketitle
+% =====================================================
+% SECTION 1: PROJECT TOPIC
+% =====================================================
+\section{Introduction}
 
-\section{Reward is Enough}
+\textbf{Goal and Approach.}
+% --- MODIFIED: Added definitions for s_t, a_t, and pi
+We aim to solve \emph{Convex Markov Decision Processes (cMDPs)}, which generalize standard RL by allowing a convex objective $f(d_\pi)$ over the discounted state-action occupancy measure $d_\pi(s,a)=(1-\gamma)\sum_{t\ge0}\gamma^t\Pr_\pi(s_t=s,a_t=a)$, where $s_t$ and $a_t$ are the state and action at time $t$ under policy $\pi$, and $\gamma \in [0,1)$ is the discount factor.
+This general formulation subsumes imitation/occupancy matching, traditional \emph{Constrained MDPs (CMDPs)}, and exploration.
 
-While maximizing a cumulative reward function that is Markov and stationary is sufficient to capture many kinds of goals in a Markov Decision Process (MDP), not all objectives can be represented in this way. 
-To address this limitation, the paper considers \textit{convex MDPs}, where goals are expressed as convex functions of the stationary distribution rather than as the linear functions used in the standard RL formulation. 
-This generalization enables the framework to handle a broader range of problems in both supervised and unsupervised RL settings, including apprenticeship learning, constrained MDPs, and pure exploration.
+\textbf{A Tractable Reformulation.}
+A convenient way to solve this problem is via its \emph{Fenchel–dual} reformulation,
+$\min_{d\in\mathcal K} f(d)=\min_\pi\max_y\langle y,d_\pi\rangle - f^*(y)$,
+where $\mathcal{K}$ is the occupancy polytope and $f^*$ is the Fenchel conjugate of $f$. Crucially, for any fixed dual variable $y$, the policy subproblem $\min_\pi \langle y, d_\pi \rangle$ becomes a standard RL problem with a shaped reward $r_y(s,a)=-y(s,a)$.
+(We use $y$ for the dual, as in \citep{asad2024fast}; Zahavy et\,al.\ \citep{zahavy2021reward} use $\lambda$, with $r_\lambda=-\lambda$.)
+This suggests an alternating approach: (i) a dual ascent step on $y$, and (ii) a policy-improvement step on the shaped-reward RL instance.
 
-A key theoretical contribution is the use of \textit{Fenchel duality} to reformulate this convex minimization problem. 
-This powerful tool transforms the original objective 
-\(\min_{d_\pi \in K} f(d_\pi)\) 
-into an equivalent convex--concave (zero-sum) game between the agent and an adversary. 
-Applying the Fenchel--Moreau identity to the objective yields the equivalent min--max saddle-point formulation:
+\textbf{Policy Learner Choice.}
+For the policy step, we use \emph{Softmax Policy Mirror Ascent (SPMA)}, which updates
+$\pi_{t+1}(a|s)=\pi_t(a|s)\bigl(1+\eta\,A_{r_y}^{\pi_t}(s,a)\bigr)$,
+where $A_{r_y}^{\pi_t}=Q_{r_y}^{\pi_t}-V_{r_y}^{\pi_t}$ is the advantage function for the shaped reward $r_y$.
+For a small constant step size $\eta$ (e.g., $\eta\le 1-\gamma$), this yields fast tabular convergence and has a clean function-approximation (FA) variant.
+
+\textbf{Related Approaches and Baseline.}
+Other methods tackle the \emph{CMDP} setting directly in the policy–multiplier space, e.g., \emph{Natural Policy Gradient Primal–Dual (NPG-PD)}. This algorithm performs natural-gradient ascent on $\pi$ with projected subgradient updates on the Lagrange multiplier.
+We favor the more general Fenchel-dual route, as it reduces the \emph{cMDP} problem to repeated standard RL; we will compare our approach against NPG-PD as a principled baseline for the constrained case.
+
+\textbf{Roadmap.}
+We adopt the Fenchel–dual reduction of \emph{cMDPs} \citep{zahavy2021reward}, use SPMA as the inner-loop policy learner \citep{asad2024fast}, and compare against NPG-PD \citep{ding2020npgpd} as a baseline.
+In the following sections, we summarize each of these foundational papers.
+
+% ===============================================
+% SECTION 2: LITERATURE REVIEW - PAPER SUMMARIES
+% ===============================================
+\section{Literature Review: Paper Summaries}
+
+% ────────────────────────────────────────────────────
+\subsection{Paper 1: \emph{Reward is Enough for Convex MDPs}}
+
+Standard RL maximizes linear reward functions over occupancy measures. This paper \citep{zahavy2021reward} extends the framework to \textit{cMDPs}, where the objective is a convex function $f(d_\pi)$ of the discounted occupancy measure $d_\pi$ (as defined in our Introduction). This generalization handles apprenticeship learning, \textit{CMDPs}, and pure exploration within a unified framework.
+
+
+
+A key theoretical contribution of this paper is the use of \textit{Fenchel duality} to reformulate the cMDP objective as a saddle-point problem. The original problem, \( \min_{d \in \mathcal{K}} f(d) \), is equivalently expressed, via the Fenchel--Moreau identity, as \( f_{\text{OPT}} = \min_{d \in \mathcal{K}} \max_{\lambda \in \Lambda} \langle \lambda, d \rangle - f^*(\lambda) \), where \( d(s,a) \) denotes the occupancy measure induced by a policy \( \pi \), \( \lambda(s,a) \) is a dual variable, \( \Lambda \) is the dual domain, and \( f^* \) is the Fenchel conjugate of \( f \).
+
+This formulation defines a two-player game: the policy player selects an occupancy measure \( d \), while the cost player chooses a dual variable \( \lambda \), and is regularized by the term \( f^*(\lambda) \). For any fixed \( \lambda \), the inner minimization with respect to \( d \) reduces to a standard reinforcement learning problem.
+
+
+
+The authors propose a \textit{meta-algorithm} that implements this game through alternating updates. 
+At each iteration, the cost player (using an Online Convex Optimization method) selects a dual variable $\lambda_k$, and the policy player responds by running RL with shaped reward $r_k = -\lambda_k$ to obtain occupancy $d_\pi^k$. 
+After $K$ rounds, the algorithm returns the averaged occupancy $\bar{d}_\pi$. 
+The paper proves $O(1/\sqrt{K})$ optimization error when both players use low-regret algorithms (via OCO regret bounds).
+
+
+Another key contribution of the paper is the \textit{unification} of several reinforcement-learning paradigms within the \textit{cMDP} framework. By selecting different convex functions \(f(d_\pi)\), the same Fenchel-dual formulation recovers well-known objectives: imitation learning when \(f\) is a divergence from an expert distribution, \textit{CMDPs} when \(f\) includes penalty terms, and pure exploration when \(f\) is the entropy of the occupancy measure. This shows that diverse RL settings, supervised, constrained, and unsupervised, can all be derived from a single convex-duality perspective.
+
+% ────────────────────────────────────────────────────
+\subsection{Paper 2: \emph{Fast Convergence of Softmax Policy Mirror Ascent}}
+
+
+This paper \citep{asad2024fast} bridges the gap between theoretically grounded policy gradient (PG) algorithms, such as Natural Policy Gradient (NPG) \citep{kakade2001natural}, which enjoy strong convergence guarantees only in tabular settings, and practical deep RL algorithms like PPO \citep{schulman2017proximal}, TRPO \citep{schulman2015trust}, and MDPO \citep{tomar2020mirror}, which perform well empirically but lack rigorous analysis. The authors propose \textit{Softmax Policy Mirror Ascent (SPMA)}, a normalization-free mirror ascent algorithm in the \textbf{dual (logit) space} that achieves linear convergence guarantees in tabular settings and extends naturally to function approximation.
+
+SPMA performs mirror ascent in logit space using the log-sum-exp mirror map $\Phi(z) = \sum_s \log \sum_a \exp(z(s,a))$, which induces the softmax link $\pi(a|s) = \exp(z(s,a))/\sum_{a'} \exp(z(s,a'))$. At iteration $t$, the update is
 \[
-f_{\text{OPT}} = \min_{d_\pi \in K} \max_{\lambda \in \Lambda} (\lambda \!\cdot\! d_\pi - f^*(\lambda)).
+z_{t+1} = \arg\max_{z} \left[ \langle z - z_t, \nabla_z J(z_t) \rangle - \frac{1}{\eta} D_\Phi(z, z_t) \right],
 \]
-The resulting formulation defines a two-player zero-sum game between a \textbf{policy player}, who seeks to maximize a reward, and a \textbf{cost player}, who adjusts the dual variable \(\lambda\) while being regularized by \(f^*(\lambda)\). 
-For any fixed value of \(\lambda\), minimizing the Lagrangian with respect to the policy’s occupancy measure \(d_\pi\) is equivalent to solving a standard reinforcement learning problem with a reward function defined as \(r = -\lambda\). 
-This demonstrates that the complex convex goal can be achieved by simply maximizing a reward, effectively showing that ``reward is enough'' for this class of problems.
+where \(z_t\) is the current logit vector, \(J(z)\) is the expected return as a function of the policy induced by \(z\), \(\nabla_z J(z_t)\) is the gradient of the objective with respect to logits, \(\eta > 0\) is the step-size, and \(D_\Phi(z, z_t) = \Phi(z) - \Phi(z_t) - \langle \nabla \Phi(z_t), z - z_t \rangle\) is the Bregman divergence induced by \(\Phi\). This update corresponds to gradient ascent in the natural geometry of the policy space and does not require explicit normalization across actions, as the softmax parameterization inherently ensures that the resulting policies remain valid probability distributions.
 
-Inspired by this result, the authors propose a \textit{meta-algorithm} that solves convex MDPs by implementing the game through an alternating learning process. 
-At each iteration, the cost player (using an Online Convex Optimization method) selects a dual variable \(\lambda_k\), and the policy player responds by running a standard RL algorithm to maximize the instantaneous reward \(r_k = -\lambda_k\), yielding an occupancy measure \(d_\pi^k\). 
-After \(K\) rounds, the algorithm outputs the averaged occupancy \(\bar{d}_\pi = \frac{1}{K}\sum_{k=1}^K d_\pi^k\). 
-The paper proves that if both subroutines achieve sublinear regret, this average policy converges to the optimal solution of the convex MDP.
-
-Another key contribution of the paper is the \textit{unification} of several reinforcement-learning paradigms within the convex MDP framework. 
-By selecting different convex functions \(f(d_\pi)\), the same Fenchel-dual formulation recovers well-known objectives: imitation learning when \(f\) is a divergence from an expert distribution, constrained RL when \(f\) includes penalty terms, and pure exploration when \(f\) is the entropy of the occupancy measure. 
-This shows that diverse RL settings---supervised, constrained, and unsupervised---can all be derived from a single convex-duality perspective.
-
-\section{Natural Policy Gradient Primal--Dual Method for Constrained Markov Decision Processes}
-
-\paragraph{}
-This paper studies problems modeled as \textit{Constrained Markov Decision Processes (CMDPs)}, where an agent seeks to maximize the expected discounted reward while satisfying a constraint on the expected discounted utility (or cost).
-
-While policy gradient methods have achieved great success for unconstrained MDPs, their theoretical guarantees for CMDPs have been mostly asymptotic or local. 
-To address the lack of non-asymptotic global convergence guarantees, the authors propose a new algorithm called the \textit{Natural Policy Gradient Primal--Dual (NPG-PD)} method.
-
-\paragraph{}
-The problem is formulated via the Lagrangian function:
-\[
-L(\pi, \lambda) = V_r^{\pi}(\rho) + \lambda \big( V_g^{\pi}(\rho) - b \big),
-\]
-where \(V_r^{\pi}\) denotes the expected reward, \(V_g^{\pi}\) represents the expected utility (or safety metric), and \(b\) is the constraint threshold.
-
-The analysis assumes the \textit{Slater condition} (strict feasibility), which ensures strong duality and the boundedness of the dual variable \(\lambda\).
-
-This leads to a \textit{primal--dual} optimization problem:
-\[
-\max_{\pi} \min_{\lambda \ge 0} L(\pi, \lambda),
-\]
-where \(\lambda\) is a nonnegative Lagrange multiplier that enforces the constraint.
-
-\paragraph{}
-The NPG-PD algorithm alternates between improving the policy (the \textit{primal variable}) and adjusting the Lagrange multiplier (the \textit{dual variable}) that enforces the constraint. 
-Each iteration consists of two coordinated updates:
-\begin{itemize}
-    \item \textbf{Primal step:} The policy parameters are updated using the \textit{natural policy gradient}, which rescales the gradient by the inverse Fisher information matrix. This geometry-aware update enables smoother and more efficient adjustments to the policy’s probability distribution, improving stability and accelerating convergence.
-
-    \item \textbf{Dual step:} The Lagrange multiplier \(\lambda\) is updated via \textit{projected subgradient descent}, increasing when the constraint is violated and decreasing when it is satisfied.
-\end{itemize}
-
-\paragraph{}
-The authors first analyze the NPG-PD algorithm under the \textit{softmax policy parametrization}, where the policy assigns action probabilities through a softmax function. 
-Using this setting, they establish a \textbf{global convergence guarantee} (Theorem~1), showing that, with appropriate step sizes, both the \textit{optimality gap} (the difference between the achieved and optimal reward) and the \textit{constraint violation} decrease at a rate of \(\mathcal{O}(1/\sqrt{T})\). 
-Thus, to achieve an \(\varepsilon\)-optimal and \(\varepsilon\)-feasible policy, the algorithm requires \(\mathcal{O}(1/\varepsilon^2)\) iterations, independent of the sizes of the state and action spaces. 
-This result represents a significant improvement over prior CMDP methods that exhibited slower convergence.
-
-\paragraph{}
-The analysis is then extended to \textit{general policy classes}, such as neural network policies, where \textit{strong duality may not hold}. 
-The method employs an approximate natural policy gradient characterized by the \textit{compatible function approximation error}, which measures how well the parameterized policy represents the true Lagrangian advantage function.
-
-Assuming policy smoothness and using an \textit{exploratory initial distribution} to mitigate state--action mismatch, \textbf{Theorem~2} establishes \textit{sublinear convergence}: the optimality gap decreases as \(\mathcal{O}(1/\sqrt{T})\) and the constraint violation as \(\mathcal{O}(T^{-1/4})\). 
-Despite approximation and exploration errors, the NPG-PD algorithm achieves stable convergence for general differentiable policy classes.
-
-\paragraph{}
-Finally, the paper presents \textit{model-free (sample-based)} versions of the NPG-PD algorithm, which estimate gradients and value functions from sampled trajectories. 
-Under standard smoothness and bounded-error assumptions, these algorithms retain sublinear convergence: the optimality gap scales as \(\mathcal{O}(1/\sqrt{T})\) and the constraint violation as \(\mathcal{O}(T^{-1/4})\).
-
-\paragraph{}
-For \textit{softmax policies}, convergence is faster and dimension-free. 
-Empirical results show that the sample-based NPG-PD performs comparably to \textit{dualDescent} (comparison in Appendix) while being simpler and computationally more efficient.
-\section{Softmax Policy Mirror Ascent (SPMA): Tabular and Function Approximation Settings}
-
-This paper bridges the gap between theoretically grounded policy gradient (PG) algorithms---such as Natural Policy Gradient (NPG), which enjoy strong convergence guarantees only in tabular settings---and practical deep RL algorithms like PPO, TRPO, and MDPO, which perform well empirically but lack rigorous analysis. The authors propose \textit{Softmax Policy Mirror Ascent (SPMA)}, a refined, normalization-free mirror ascent algorithm that operates in the \textbf{dual (logit) space}. SPMA retains the linear convergence guarantees of NPG while extending naturally to large-scale problems with function approximation.
-
-\paragraph{}
-SPMA represents the policy as a softmax over logits, 
-\[
-\pi(\cdot|s) = \mathrm{softmax}(z(s,\cdot)),
-\]
-and performs \textbf{mirror ascent} in the logit space using the log-sum-exp mirror map:
-\[
-z_{t+1} = \arg\max_z \big[\langle z - z_t, \nabla_z J(z_t)\rangle - \tfrac{1}{\eta} D_\Phi(z,z_t)\big],
-\]
-where \(D_\Phi\) is the Bregman divergence. This corresponds to gradient ascent in the policy’s natural geometry \textit{without the need for explicit normalization across actions.}  
-In the MDP case, weighting by the discounted state distribution \(d_{\pi_t}(s)\) yields the per-state update:
+Weighted by the discounted state distribution $d_{\pi_t}(s) = (1-\gamma)\sum_{\tau=0}^{\infty} \gamma^\tau \Pr_{\pi_t}(s_\tau = s)$, where $\gamma \in [0,1)$ is the discount factor, this yields a per-state policy update that is linear in both step size and advantage:
 \[
 \pi_{t+1}(a|s) = \pi_t(a|s)\big(1 + \eta A_{\pi_t}(s,a)\big),
 \]
-which is linear in both step size and advantage. Unlike NPG’s exponential normalization or SPG’s direct logit updates, this formulation improves numerical stability and convergence speed.
+where $\pi_t(a|s)$ is the probability of taking action $a$ in state $s$ under the current policy at iteration $t$, $\eta > 0$ is the step-size, and $A_{\pi_t}(s,a)$ is the advantage function at state $s$ and action $a$.
 
-\paragraph{}
+This update produces a valid probability distribution for 2 reasons. First, normalization is preserved because $\sum_a \pi_t(a|s)A^{\pi_t}(s,a) = 0$. Second, positivity requires a sufficiently small constant step size (e.g., $\eta \leq 1-\gamma$) and a per-state margin condition, so unlike NPG, no explicit renormalization is needed after the update.
+
+
 The authors prove \textbf{global linear convergence} of SPMA in both \textbf{bandit} and \textbf{tabular MDP} settings.  
 For bandits, SPMA achieves exponential (linear) convergence to the optimal arm, and a gap-dependent variant achieves \textbf{super-linear} convergence---the first such result for policy gradient methods.  
 For tabular MDPs, they establish:
@@ -144,29 +127,176 @@ For tabular MDPs, they establish:
 \]
 where \(C_t\) reflects the per-state advantage gap. Thus, with a constant step size \(\eta < \min(1-\gamma, [C_t(1-\gamma)]^{-1})\), SPMA converges linearly to the optimal value function---matching NPG’s rate but without dependence on the potentially large distribution-mismatch term.
 
-\paragraph{}
 To handle large or continuous state--action spaces, SPMA is extended using \textbf{projected mirror ascent} under a log-linear or neural policy parameterization. The logits \(z_\theta(s,a)\) are constrained to lie in a realizable function class \(Z = \{f_\theta(s,a)\}\), and each update projects the ideal (tabular) step back into this feasible set via convex softmax classification:
 \[
 \theta_{t+1} = \argmin_\theta \sum_s d_{\pi_t}(s)\,
 \mathrm{KL}(\pi_{t+1/2}(\cdot|s)\,||\,\pi_\theta(\cdot|s)).
 \]
-Unlike NPG, this does not require compatible funcStion approximation; unlike MDPO, the per-iteration subproblem remains convex for linear FA.  
-Under bounded rewards, expressive parameterization, and adequate sampling, \textbf{Algorithm~1} achieves \textbf{linear convergence to a neighborhood} of the optimal value function. The residual error depends on the function-approximation bias and statistical error terms (\(\varepsilon_{\text{bias}}, \varepsilon_{\text{stat}}\)), which vanish as data or inner-loop optimization improves.
+Unlike NPG, this does not require compatible function approximation; unlike MDPO, the per-iteration subproblem remains convex for linear FA.  
+Under bounded rewards, realizability, and on-policy sampling, SPMA converges \textbf{linearly to a neighborhood} of the optimal value function, where the neighborhood size depends on FA bias ($\varepsilon_{\text{bias}}$) and statistical error ($\varepsilon_{\text{stat}}$).
 
-\paragraph{}
-SPMA is evaluated on (i) tabular MDPs, (ii) continuous-state discrete-action MDPs (Atari), and (iii) continuous control tasks (MuJoCo).  
-\begin{itemize}
-    \item In \textbf{tabular settings}, SPMA matches NPG and consistently outperforms SPG.
-    \item With \textbf{linear FA}, it surpasses MDPO in challenging benchmarks like \textit{CliffWorld}.
-    \item In \textbf{deep RL benchmarks}, SPMA achieves performance comparable to or exceeding PPO, TRPO, and MDPO---especially on Atari, where it surpasses both TRPO variants.
-\end{itemize}
-Unlike TRPO-constrained, SPMA is computationally efficient and free of heavy hyperparameter tuning, demonstrating that strong theoretical guarantees can coexist with practical robustness.
+In the Fenchel-dual cMDP framework, we use SPMA as the \textbf{policy player} to solve the shaped-reward inner RL step, leveraging its linear convergence and convex surrogate for efficient inner-loop optimization.
+
+% ────────────────────────────────────────────────────
+\subsection{Paper 3: \emph{Natural Policy Gradient Primal--Dual for CMDPs}}
+
+% This paper studies problems modeled as \textit{Constrained Markov Decision Processes }, where an agent seeks to maximize the expected discounted reward while satisfying a constraint on the expected discounted utility (or cost).
+
+% While policy gradient methods have achieved great success for unconstrained MDPs, their theoretical guarantees for CMDPs have been mostly asymptotic or local. 
+% To address the lack of non-asymptotic global convergence guarantees, the authors propose a new algorithm called the \textit{Natural Policy Gradient Primal--Dual (NPG-PD)} method.
+
+This paper \citep{ding2020npgpd} addresses the \emph{CMDP} setting, which our Introduction identified as a key instance of the broader \emph{cMDP} framework. The goal in a \emph{CMDP} is to maximize an expected discounted reward subject to constraints on expected discounted costs. While policy gradient methods have strong theory for unconstrained problems, their guarantees for \emph{CMDPs} have been largely asymptotic or local. This paper proposes the \textbf{Natural Policy Gradient Primal–Dual (NPG-PD)} algorithm to establish non-asymptotic, global guarantees.
+
+% Should we add nonconvexity and the nuance about time-averaged iterates for the primal dual update here? for completeness
+The problem is formulated via the Lagrangian function: \( L(\pi, \lambda) = V_r^{\pi}(\rho) + \lambda \big( V_g^{\pi}(\rho) - b \big) \), where $\rho$ is the initial state distribution, $V_r^{\pi}(\rho)$ is the expected discounted reward, \(V_g^{\pi}(\rho)\) represents the expected discounted utility (or cost), and \( b \) is the constraint threshold. The analysis assumes the \textit{Slater condition} (strict feasibility), which ensures strong duality and the boundedness of the dual variable \( \lambda \). Despite the \textit{nonconcave} objective and \textit{nonconvex} feasible set under policy parameterization, the paper proves convergence guarantees for \textbf{time-averaged} primal--dual iterates solving \(\max_{\pi}\min_{\lambda\ge 0} L(\pi,\lambda)\).
+
+% The problem is formulated via the Lagrangian function: \( L(\pi, \lambda) = V_r^{\pi}(\rho) + \lambda \big( V_g^{\pi}(\rho) - b \big) \), where \( V_r^{\pi} \) denotes the expected reward, \( V_g^{\pi} \) represents the expected utility (or safety metric), and \( b \) is the constraint threshold. The analysis assumes the \textit{Slater condition} (strict feasibility), which ensures strong duality and the boundedness of the dual variable \( \lambda \). This leads to a \textit{primal--dual} optimization problem: \( \max_{\pi} \min_{\lambda \ge 0} L(\pi, \lambda) \), where \( \lambda \) is a nonnegative Lagrange multiplier that enforces the constraint.
+
+
+\textbf{Algorithm.} \; \textit{NPG-PD} alternates (i) a \textbf{primal} update using the natural policy gradient (Fisher-preconditioned) to adjust \(\pi\), and (ii) a \textbf{dual} update using projected subgradient descent on \(\lambda\), which increases when the constraint is violated and decreases when satisfied. The geometry-aware primal step stabilizes updates in policy space.
+
+% The NPG-PD algorithm alternates between improving the policy (the \textit{primal variable}) and adjusting the Lagrange multiplier (the \textit{dual variable}) that enforces the constraint. Each iteration consists of two coordinated updates. 
+
+% In the \textbf{primal step}, the policy parameters are updated using the \textit{natural policy gradient}, which rescales the gradient by the inverse Fisher information matrix. This geometry-aware update enables smoother and more efficient adjustments to the policy’s probability distribution, improving stability and accelerating convergence. In the \textbf{dual step}, the Lagrange multiplier \(\lambda\) is updated via \textit{projected subgradient descent}, increasing when the constraint is violated and decreasing when it is satisfied.
+
+% Softmax: adding mentions of step size, dimension-free and averaging
+Under a \textit{softmax policy parameterization}, the paper establishes global, dimension-free convergence for the \textbf{time-averaged} iterates. With appropriately chosen step sizes (e.g., a primal stepsize scaling with \(\log|\mathcal{A}|\) and a dual stepsize on the order of \((1-\gamma)/\sqrt{T}\)), both the \textit{optimality gap} and the \textit{constraint violation} of the averaged policy decrease as \(\mathcal{O}(T^{-1/2})\). Hence, an \(\varepsilon\)-optimal and \(\varepsilon\)-feasible policy is reached in \(\mathcal{O}(\varepsilon^{-2})\) iterations, independent of \(|\mathcal{S}|\) and \(|\mathcal{A}|\), where \(\mathcal{S}\) and \(\mathcal{A}\) denote the state and action spaces.
+
+% The authors first analyze the NPG-PD algorithm under the \textit{softmax policy parametrization}, where the policy assigns action probabilities through a softmax function. 
+% Using this setting, they establish a \textbf{global convergence guarantee} (Theorem~1), showing that, with appropriate step sizes, both the \textit{optimality gap} (the difference between the achieved and optimal reward) and the \textit{constraint violation} decrease at a rate of \(\mathcal{O}(1/\sqrt{T})\). 
+% Thus, to achieve an \(\varepsilon\)-optimal and \(\varepsilon\)-feasible policy, the algorithm requires \(\mathcal{O}(1/\varepsilon^2)\) iterations, independent of the sizes of the state and action spaces. 
+% This result represents a significant improvement over prior CMDP methods that exhibited slower convergence.
+
+For \textit{general policy classes} (e.g., neural network policies) where strong duality may fail, the analysis uses an \textit{approximate} natural policy gradient. The bounds hold \textbf{up to} (i) a \textit{compatible function approximation error} \(\varepsilon_{\text{approx}}\), quantifying how well the parameterized critic matches the Lagrangian advantage, and (ii) a \textit{distribution-mismatch factor} \(\big\|\nu^*/\nu_0\big\|_\infty\), reflecting exploration from the initial state--action distribution.
+
+% The analysis is then extended to \textit{general policy classes}, such as neural network policies, where \textit{strong duality may not hold}. 
+% The method employs an approximate natural policy gradient characterized by the \textit{compatible function approximation error}, which measures how well the parameterized policy represents the true Lagrangian advantage function.
+
+Assuming policy smoothness and an \textit{exploratory initial distribution} to mitigate state--action mismatch, the authors proves \textit{sublinear convergence} of the time-averaged iterates: the optimality gap is \(\mathcal{O}(T^{-1/2})\) and the constraint violation is \(\mathcal{O}(T^{-1/4})\), up to \(\varepsilon_{\text{approx}}\) and \(\big\|\nu^*/\nu_0\big\|_\infty\).
+
+% Assuming policy smoothness and using an \textit{exploratory initial distribution} to mitigate state--action mismatch, the authors establish \textit{sublinear convergence}: the optimality gap decreases as \(\mathcal{O}(1/\sqrt{T})\) and the constraint violation as \(\mathcal{O}(T^{-1/4})\).
+
+Finally, the paper presents \textit{model-free (sample-based)} variants that estimate gradients and values from trajectories. With \(K\) rollouts per iteration and standard smoothness/bounded-error assumptions, the time-averaged guarantees remain sublinear: the optimality gap scales as \(\mathcal{O}(T^{-1/2})\) and the constraint violation as \(\mathcal{O}(T^{-1/4})\), with constants depending on \(K\) and \((1-\gamma)^{-1}\). Under the softmax parameterization, the resulting sample complexity is tighter than in the general case.
+
+% Finally, the paper presents \textit{model-free (sample-based)} versions of the NPG-PD algorithm, which estimate gradients and value functions from sampled trajectories. 
+% Under standard smoothness and bounded-error assumptions, these algorithms retain sublinear convergence: the optimality gap scales as \(\mathcal{O}(1/\sqrt{T})\) and the constraint violation as \(\mathcal{O}(T^{-1/4})\).
+
+% ────────────────────────────────────────────────────
+
+
 
 
 \bibliographystyle{plainnat}
 \bibliography{ref}
 
-\appendix
-\section{Appendix}
+% \appendix
+% \section{Appendix}
 
 \end{document}
+
+
+
+
+
+
+% \begin{figure}[htbp]
+% \centering
+% \begin{tikzpicture}[node distance=1.55cm, >=Latex]
+% \node[draw, rounded corners, align=center, inner sep=4pt] (cost) {Cost player\\$y_k$};
+% \node[draw, rounded corners, align=center, inner sep=4pt, right=3.3cm of cost] (env) {Environment\\$P$};
+% \node[draw, rounded corners, align=center, inner sep=4pt, below=1.15cm of env] (policy) {Policy player\\SPMA on $r_{y_k}$};
+% \draw[->] (cost) -- node[above, align=center]{shaped reward\\$r_{y_k}=-y_k$} (env);
+% \draw[->] (policy) -- node[right]{actions $a$} (env);
+% \draw[->] (env) -- node[left]{trajectories} (policy);
+% \draw[->, dashed, bend left=12] (policy.west) to node[above]{\small $\hat d_{\pi_k}$ / $\widehat{\mathbb E}[\phi]$} (cost.south);
+% \end{tikzpicture}
+% \caption{\textbf{Dual--SPMA loop.} Dual ascent chooses $y_k$, which induces a shaped reward for the SPMA policy step; discounted occupancies feed the next dual update.}
+% \label{fig:dualspma}
+% \end{figure}
+
+% \textbf{Roadmap.}
+% We adopt the Fenchel–dual reduction of CMDPs \citep{zahavy2021reward}, use SPMA as the policy learner \citep{asad2024fast}, and compare to NPG–PD \citep{ding2020npgpd}. 
+% In the following sections we summarize each paper and its link to our project.
+
+% 3 perspective table ============
+% \begin{table}[htbp]
+% \centering
+% \small
+% \setlength{\tabcolsep}{3pt}
+% \begin{tabular}{@{}p{2.8cm}p{3.8cm}p{2.8cm}p{3.8cm}@{}}
+% \toprule
+% \textbf{Work} & \textbf{Objective / Saddle} & \textbf{Policy Player} & \textbf{Guarantees / Notes} \\
+% \midrule
+% Zahavy et al.\ (2021) \citep{zahavy2021reward} & $\min_{d} f(d)$; Fenchel dual $\min_d \max_\lambda \lambda\!\cdot\! d - f^{*}(\lambda)$ & Best response / low-regret RL under $r_\lambda=-\lambda$ & $O(1/\sqrt{K})$ via OCO; unifies AL, CMDPs, exploration \\[6pt]
+% Asad et al.\ (2025) \citep{asad2024fast} & RL inner step (fixed $y$) & SPMA: $\pi_{t+1}=\pi_t(1+\eta A)$; FA via convex projection & Linear (tabular); neighbourhood (FA); strong empirical results \\[6pt]
+% Ding et al.\ (2020) \citep{ding2020npgpd} & Lagrangian CMDP $\max_\pi \min_{\lambda\ge0} V_r^\pi+\lambda(V_g^\pi-b)$ & NPG for $\pi$, projected subgradient for $\lambda$ & Dimension-free $O(1/\sqrt{T})$ gap \& violation (avg.) \\
+% \bottomrule
+% \end{tabular}
+% % \caption{Three perspectives that our project unifies or compares against.}
+% \caption{Three perspectives: (i) Fenchel–dual CMDP formulation, (ii) SPMA as the policy player, and (iii) NPG–PD as a baseline comparator.
+% OCO = online convex optimization; AL = apprenticeship learning.}
+% \end{table}
+
+% % Option 1 - change table to explicitly show how 3 paper inform our dual spma framework
+% \begin{table}[htbp]
+% \centering
+% \small
+% \setlength{\tabcolsep}{3pt}
+% \begin{tabular}{@{}p{2.8cm}p{3.8cm}p{2.8cm}p{3.8cm}@{}}
+% \toprule
+% \textbf{Work} & \textbf{Contribution to Our Framework} & \textbf{Role in Dual-SPMA} & \textbf{Key Properties} \\
+% \midrule
+% Zahavy et al.\ (2021) \citep{zahavy2021reward} & Fenchel dual formulation: $\min_d \max_\lambda \lambda\!\cdot\! d - f^{*}(\lambda)$ & Provides outer-loop structure (dual ascent + policy step) & $O(1/\sqrt{K})$ via OCO; shaped reward $r_\lambda=-\lambda$ \\[6pt]
+
+% Asad et al.\ (2025) \citep{asad2024fast} & SPMA policy optimizer: $\pi_{t+1}=\pi_t(1+\eta A)$ & Serves as our policy player for the inner RL step & Linear convergence (tabular); practical FA via convex projection \\[6pt]
+
+% Ding et al.\ (2020) \citep{ding2020npgpd} & NPG-PD: Lagrangian CMDP with NPG + projected subgradient & Our comparison baseline for CMDPs & Dimension-free $O(1/\sqrt{T})$ gap \& violation \\
+% \bottomrule
+% \end{tabular}
+% \caption{How the three foundational works inform our Dual-SPMA framework. Zahavy provides the reduction, Asad provides the policy optimizer, and Ding provides our baseline.}
+% \end{table}
+
+% % Option 2 - make it purely about the paper
+% \begin{table}[htbp]
+% \centering
+% \small
+% \setlength{\tabcolsep}{3pt}
+% \begin{tabular}{@{}p{2.8cm}p{4cm}p{3cm}p{3.5cm}@{}}
+% \toprule
+% \textbf{Work} & \textbf{Problem Formulation} & \textbf{Algorithm} & \textbf{Guarantees} \\
+% \midrule
+% Zahavy et al.\ (2021) \citep{zahavy2021reward} & Convex MDP: $\min_{d} f(d)$; Fenchel dual $\min_d \max_\lambda \lambda\!\cdot\! d - f^{*}(\lambda)$ & Meta-algorithm alternating dual ascent with RL & $O(1/\sqrt{K})$ via OCO \\[6pt]
+
+% Asad et al.\ (2025) \citep{asad2024fast} & Standard MDP value maximization & SPMA: $\pi_{t+1}=\pi_t(1+\eta A)$ with logit-space mirror ascent & Linear (tabular); neighbourhood (FA) \\[6pt]
+
+% Ding et al.\ (2020) \citep{ding2020npgpd} & CMDP: $\max_\pi V_r^\pi$ s.t. $V_g^\pi \geq b$ & NPG-PD: NPG for $\pi$, projected subgradient for $\lambda$ & $O(1/\sqrt{T})$ gap \& violation \\
+% \bottomrule
+% \end{tabular}
+% \caption{Summary of the three foundational papers. We combine Zahavy's framework with Asad's policy optimizer and compare against Ding's baseline.}
+% \end{table}
+
+% End of Danie's Intro
+
+
+
+% %  Danie 
+% The meta-algorithm alternates: (i) the cost player uses \textbf{online convex optimization} to update $\lambda_k$, and (ii) the policy player runs RL with reward $r_k = -\lambda_k$ to obtain occupancy $d_\pi^k$. After $K$ rounds, the \textbf{averaged occupancy} $\bar{d}_\pi$ converges to the optimum. The paper proves $O(1/\sqrt{K})$ optimization error when both players use low-regret algorithms (Theorem 1, based on OCO regret bounds).
+
+% The framework \textbf{unifies} several RL paradigms by choosing different $f(d_\pi)$: apprenticeship learning ($f = $ divergence from expert), constrained MDPs ($f$ with penalty terms), and pure exploration ($f = $ entropy). Table 1 in the paper lists these instantiations.
+
+
+% Inspired by this result, the authors propose a \textit{meta-algorithm} that solves convex MDPs by implementing the game through an alternating learning process. 
+% At each iteration, the cost player (using an Online Convex Optimization method) selects a dual variable \(\lambda_k\), and the policy player responds by running a standard RL algorithm to maximize the instantaneous reward \(r_k = -\lambda_k\), yielding an occupancy measure \(d_\pi^k\). 
+% After \(K\) rounds, the algorithm outputs the averaged occupancy \(\bar{d}_\pi = \frac{1}{K}\sum_{k=1}^K d_\pi^k\). 
+% The paper proves that if both subroutines achieve sublinear regret, this average policy converges to the optimal solution of the convex MDP.
+
+
+% end of Danie's comment 
+
+% While maximizing a cumulative reward function that is Markov and stationary is sufficient to capture many kinds of goals in a Markov Decision Process (MDP), not all objectives can be represented in this way. 
+% To address this limitation, the paper considers \textit{convex MDPs}, where goals are expressed as convex functions of the stationary distribution rather than as the linear functions used in the standard RL formulation. 
+% This generalization enables the framework to handle a broader range of problems in both supervised and unsupervised RL settings, including apprenticeship learning, constrained MDPs, and pure exploration.
+
+% Danie's comment: In the Fenchel identity line, write the Fenchel saddle cleary,  state-aciton pairing explicitly
+
+% 

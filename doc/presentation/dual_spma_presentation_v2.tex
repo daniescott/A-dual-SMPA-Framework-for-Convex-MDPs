@@ -1,0 +1,301 @@
+
+% Dual–SPMA — Presentation Template (Beamer) — Mixed-audience 20‑min version
+% ---------------------------------------------------------------------------
+\documentclass[10pt,aspectratio=169]{beamer}
+
+% Theme
+\usetheme{Madrid}
+\usecolortheme{default}
+\setbeamertemplate{navigation symbols}{} % remove nav symbols
+\setbeamertemplate{footline}[frame number]
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{bm}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage[numbers]{natbib}
+
+% Handy macros
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\KL}{\mathrm{KL}}
+\newcommand{\inner}[2]{\left\langle #1, #2 \right\rangle}
+
+% Title
+\title[A Dual--SPMA Framework for Convex MDPs]{A Dual--SPMA Framework for Convex MDPs}
+\author[Team]{Shervin Khamooshian \and Ahmed Magd \and Pegah Aryadoost \and Danielle Nguyen}
+\institute[SFU]{School of Computing Science, Simon Fraser University}
+\date{Project Milestone Presentation}
+
+\begin{document}
+
+% --- 0) Title & claim ---
+\begin{frame}
+  \titlepage
+  \vspace{-0.5em}
+  \begin{block}{Claim (one sentence)}
+  Fenchel dual $\Rightarrow$ shaped-reward RL + a fast policy optimizer (SPMA) is a simple, competitive way to solve convex MDPs; we compare to NPG--PD.
+  \end{block}
+\end{frame}
+
+% --- Agenda / Outline ---
+\begin{frame}{Outline}
+  \tableofcontents
+\end{frame}
+
+\section{Background}
+
+% --- 1) What is an MDP? ---
+\begin{frame}{What is an MDP? (90s)}
+\begin{columns}[T]
+\begin{column}{0.58\textwidth}
+\begin{itemize}
+  \item<1-> \textbf{Loop:} see state $s$, take action $a$, env. moves, get reward.
+  \item<2-> \textbf{Policy:} a rule for picking actions in each state.
+  \item<3-> \textbf{Goal:} do well on average over time (discounted return).
+\end{itemize}
+\end{column}
+\begin{column}{0.38\textwidth}
+\begin{figure}
+  \centering
+  \fbox{\parbox{0.9\linewidth}{\centering \vspace{1.2em} \textit{Insert cartoon loop}\\[0.25em] state $\rightarrow$ action $\rightarrow$ next state\\[0.25em] reward \vspace{1.2em}}}
+\end{figure}
+\end{column}
+\end{columns}
+\end{frame}
+
+% --- 2) RL standard objective ---
+\begin{frame}{RL's standard objective}
+\begin{itemize}
+  \item<1-> \textbf{English:} maximize the long-run (discounted) return.
+  \item<2-> \textbf{Minimal math:} {\large $J(\pi)=(1-\gamma)\,\E\!\left[ \sum_{t\ge0}\gamma^t\, r(s_t,a_t)\right]$}
+  \item<3-> We’ll re-express this using \textbf{where the policy spends time}.
+\end{itemize}
+\end{frame}
+
+% --- 3) Occupancy measure with example ---
+\begin{frame}{Occupancy measure (with example)}
+\begin{columns}[T]
+\begin{column}{0.58\textwidth}
+\begin{itemize}
+  \item<1-> \textbf{Idea:} $d^\pi(s,a)$ = discounted time spent in $(s,a)$.
+  \item<2-> Think of a heatmap over grid cells and actions.
+  \item<3-> It’s a probability distribution over $(s,a)$.
+\end{itemize}
+\end{column}
+\begin{column}{0.38\textwidth}
+\begin{figure}
+  \centering
+  \fbox{\parbox{0.9\linewidth}{\centering \vspace{1.2em} \textit{Insert gridworld heatmap}\\[0.25em] “high” vs “low” $d^\pi$ \vspace{1.2em}}}
+\end{figure}
+\end{column}
+\end{columns}
+\end{frame}
+
+% --- 4) <d, r> formulation ---
+\begin{frame}{RL is linear in occupancy}
+\begin{itemize}
+  \item<1-> \textbf{Key identity:} {\Large $J(\pi)=\inner{r}{d^\pi}$}
+  \item<2-> This inner product is the bridge to convex MDPs.
+  \item<3-> But not all goals are linear in $d^\pi$ $\Rightarrow$ need a more general objective.
+\end{itemize}
+\end{frame}
+
+% --- 5) Why convex MDPs? + saddle idea ---
+\begin{frame}{Why convex MDPs? \& the saddle idea}
+\begin{itemize}
+  \item<1-> Some goals: constraints, imitation, exploration $\Rightarrow$ minimize convex $f(d^\pi)$.
+  \item<2-> \textbf{Fenchel trick:} {\large $f(d)=\max_{y}\{\inner{y}{d}-f^\ast(y)\}$}
+  \item<3-> \textbf{Saddle:} {\large $\min_{\pi}\max_{y}\, \inner{y}{d^\pi}-f^\ast(y)$}
+  \item<4-> For fixed $y$, policy step is RL with \textbf{shaped reward} $r_y=-y$ (or $-\phi^\top y$).
+\end{itemize}
+\begin{figure}
+  \centering
+  \fbox{\parbox{0.95\linewidth}{\centering \vspace{0.6em} \textit{Insert 2‑player cartoon:}\\ cost player picks $y$ $\Rightarrow$ policy learns under $r_y$ \vspace{0.6em}}}
+\end{figure}
+\end{frame}
+
+\section{Policy player}
+
+% --- 6) SPMA overview + why ---
+\begin{frame}{SPMA in 90 seconds: what \& why}
+\begin{itemize}
+  \item<1-> Mirror ascent in \textit{logit} space with log-sum-exp mirror map.
+  \item<2-> \textbf{Tabular update:} {\Large $\pi_{t+1}(a|s)=\pi_t(a|s)\bigl(1+\eta\,A_{\pi_t}(s,a)\bigr)$}
+  \item<3-> \textbf{Why SPMA?} Fast tabular convergence; no per-state renormalization; FA via convex softmax classification.
+\end{itemize}
+\begin{figure}
+  \centering
+  \fbox{\parbox{0.95\linewidth}{\centering \vspace{0.6em} \textit{Insert small panel:}\\ update equation + “classification projection” box \vspace{0.6em}}}
+\end{figure}
+\end{frame}
+
+\section{Method}
+
+% --- 7) Dual–SPMA loop + pseudocode ---
+\begin{frame}{Our method: Dual--SPMA loop (overview)}
+\begin{columns}[T]
+\begin{column}{0.55\textwidth}
+\begin{itemize}
+  \item<1-> \textbf{Outer} (dual): OMD/FTL on $y$ using $\hat d^{\,\pi}$ or $\widehat{\E}[\phi]$.
+  \item<2-> \textbf{Inner} (policy): run $K_{\text{in}}$ SPMA steps on $r_y$.
+  \item<3-> \textbf{Estimator:} discounted occupancy or feature expectations.
+\end{itemize}
+\end{column}
+\begin{column}{0.43\textwidth}
+\begin{figure}
+  \centering
+  \fbox{\parbox{0.9\linewidth}{\centering \vspace{1.0em} \textit{Insert Dual--SPMA loop diagram}\\[0.25em] (colored: cost vs policy)\vspace{1.0em}}}
+\end{figure}
+\end{column}
+\end{columns}
+
+\vspace{0.4em}
+\textbf{Pseudocode (stub)}:
+\begin{block}{}
+\footnotesize
+\begin{tabular}{p{0.97\linewidth}}
+1. init $\pi_1,y_1$; \quad \textbf{for} $k=1..K$:\\
+\quad (a) policy: SPMA on $r_{y_k}$ for $K_{\text{in}}$ steps $\rightarrow \pi_{k+1}$;\\
+\quad (b) estimate $\hat d^{\,\pi_{k+1}}$ / $\widehat{\E}[\phi]$;\\
+\quad (c) dual: $y_{k+1}\leftarrow\mathrm{OMD/FTL}\big(y_k,\hat d^{\,\pi_{k+1}}-\nabla f^\ast(y_k)\big)$;\\
+\end{tabular}
+\end{block}
+\end{frame}
+
+\section{Evaluation}
+
+% --- 8) Envs, metrics, ablations ---
+\begin{frame}{Experiments: environments, metrics, ablations}
+\begin{columns}[T]
+\begin{column}{0.52\textwidth}
+\textbf{Environments}
+\begin{itemize}
+  \item<1-> Tabular (grid/chain) with constraints or imitation
+  \item<2-> Linear features (FA) versions
+\end{itemize}
+\textbf{Baselines}
+\begin{itemize}
+  \item<3-> NPG--PD (CMDP)
+\end{itemize}
+\end{column}
+\begin{column}{0.44\textwidth}
+\textbf{Metrics}
+\begin{itemize}
+  \item<1-> Saddle $L(\pi,y)$ (when $f^\ast$ is known)
+  \item<2-> Constraint violation; return under $r_y$
+  \item<3-> $\|d^\pi\|_1$ or $\|\E[\phi]\|$; wall-clock/sample efficiency
+\end{itemize}
+\end{column}
+\end{columns}
+\vspace{0.4em}
+\textbf{Ablations:} OMD vs FTL, inner SPMA steps $K_{\text{in}}$, step-size $\eta$, tabular vs FA.
+\end{frame}
+
+% --- 9) Results (main) ---
+\begin{frame}{Results: convergence \& constraint behavior}
+\begin{figure}
+  \centering
+  \fbox{\parbox{0.92\linewidth}{\centering \vspace{6em} \textit{Insert plot:} $L(\pi,y)$ vs iterations (Dual--SPMA vs NPG--PD) \vspace{6em}}}
+\end{figure}
+\pause
+\begin{figure}
+  \centering
+  \fbox{\parbox{0.92\linewidth}{\centering \vspace{6em} \textit{Insert plot:} Constraint violation vs iterations \vspace{6em}}}
+\end{figure}
+\end{frame}
+
+% --- 10) Baseline NPG-PD (brief) ---
+\begin{frame}{Baseline: NPG--PD in one slide}
+\begin{itemize}
+  \item<1-> Lagrangian $L(\pi,\lambda)=V^\pi_r(\rho)+\lambda(V^\pi_g(\rho)-b)$.
+  \item<2-> Updates: natural PG for $\pi$; projected subgradient for $\lambda$.
+  \item<3-> Guarantees: $O(1/\sqrt{T})$ averaged gap \& violation (dimension-free).
+\end{itemize}
+\end{frame}
+
+% --- 11) Head-to-head comparison ---
+\begin{frame}{Dual--SPMA vs NPG--PD}
+\begin{columns}[T]
+\begin{column}{0.52\textwidth}
+\begin{figure}
+  \centering
+  \fbox{\parbox{0.92\linewidth}{\centering \vspace{6em} \textit{Insert overlayed or side-by-side plot} \vspace{6em}}}
+\end{figure}
+\end{column}
+\begin{column}{0.44\textwidth}
+\textbf{Takeaways}
+\begin{itemize}
+  \item<2-> Convergence speed (where SPMA helps)
+  \item<3-> Constraint control (where NPG--PD excels)
+  \item<4-> Compute / simplicity
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+% --- 12) Takeaways & limitations ---
+\begin{frame}{Takeaways \& limitations}
+\begin{itemize}
+  \item<1-> \textbf{Recipe:} convex MDP $\Rightarrow$ shaped reward + SPMA.
+  \item<2-> \textbf{Competitive} with NPG--PD on our tasks.
+  \item<3-> \textbf{Limits:} estimator variance, dual tuning, inner/outer coupling.
+\end{itemize}
+\end{frame}
+
+% --- Q&A (optional) ---
+\begin{frame}{Q\&A}
+\centering
+\Large Questions?
+\end{frame}
+
+% --- Backup slides ---
+\appendix
+\section*{Backup}
+
+\begin{frame}{Occupancy polytope (flow constraints)}
+\small
+\begin{block}{Discounted case}
+For all $s$:\quad $\sum_a d(s,a)=(1-\gamma)\rho(s)+\gamma\sum_{s',a'}P(s|s',a')\,d(s',a'),\qquad d\ge0.$
+\end{block}
+\end{frame}
+
+\begin{frame}{From convex objective to shaped reward (derivation)}
+\small
+\begin{align*}
+\min_{d\in K} f(d) &= \min_{d\in K}\max_{y}\{\inner{y}{d}-f^\ast(y)\} \\
+&= \min_{\pi}\max_{y}\{\inner{y}{d^\pi}-f^\ast(y)\}
+\end{align*}
+\textbf{Fixed $y$:} policy step is standard RL with shaped reward $r_y=-y$ (or $-\phi^\top y$).
+\end{frame}
+
+\begin{frame}{SPMA with features = convex softmax classification}
+\small
+\begin{block}{Projection objective (per iteration)}
+$\displaystyle \theta_{t+1}=\arg\min_\theta \sum_s d^{\pi_t}(s)\; \KL\!\big(\pi_{t+1/2}(\cdot|s)\,\|\,\pi_\theta(\cdot|s)\big)$
+\end{block}
+\end{frame}
+
+\begin{frame}{Algorithm sketch (outer--inner)}
+\footnotesize
+\begin{enumerate}
+  \item Initialize $y_1$, policy $\pi_1$.
+  \item For $k=1,\dots,K$:
+  \begin{enumerate}
+    \item Policy step: run SPMA on $r_{y_k}$ for $K_{\text{in}}$ steps $\Rightarrow \pi_{k+1}$.
+    \item Estimate $\hat d^{\,\pi_{k+1}}$ (or $\widehat{\E}[\phi]$).
+    \item Dual step: $y_{k+1}\leftarrow \mathrm{OMD/FTL}\bigl(y_k, \hat d^{\,\pi_{k+1}}-\nabla f^\ast(y_k)\bigr)$.
+  \end{enumerate}
+\end{enumerate}
+\end{frame}
+
+\begin{frame}[allowframebreaks]{References}
+\bibliographystyle{plainnat}
+\bibliography{refs}
+\end{frame}
+
+\end{document}
