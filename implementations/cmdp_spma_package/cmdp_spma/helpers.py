@@ -1,13 +1,15 @@
-# Helpers: reward & cost tables
-
+# ==============================================================================
+# FILE: cmdp_spma/helpers.py 
+# build_reward_table, build_uniform_cost_table
+# ==============================================================================
 import numpy as np
-import gymnasium as gym
 
 def build_reward_table(env):
     """
     For tabular gymnasium envs with env.unwrapped.P (like FrozenLake),
     build the one-step expected reward table r(s,a).
     """
+    import gymnasium as gym
     assert isinstance(env.observation_space, gym.spaces.Discrete)
     assert isinstance(env.action_space, gym.spaces.Discrete)
     nS, nA = env.observation_space.n, env.action_space.n
@@ -22,6 +24,7 @@ def build_reward_table(env):
             r[s, a] = r_sa
     return r
 
+
 def build_uniform_cost_table(env, bad_states=None, cost_bad=1.0):
     """
     Example cost table: cost 1 when entering any 'bad' state, else 0.
@@ -29,6 +32,7 @@ def build_uniform_cost_table(env, bad_states=None, cost_bad=1.0):
     This is just a simple helper; in your experiments you'll want a
     more meaningful c(s,a).
     """
+    import gymnasium as gym
     assert isinstance(env.observation_space, gym.spaces.Discrete)
     assert isinstance(env.action_space, gym.spaces.Discrete)
     nS, nA = env.observation_space.n, env.action_space.n

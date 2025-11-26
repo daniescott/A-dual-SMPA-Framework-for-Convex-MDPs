@@ -11,7 +11,12 @@ class TabularEstimator:
         self.nS, self.nA, self.gamma = nS, nA, gamma
         self.table = np.zeros((nS, nA), dtype=np.float64)
         self.N = 0  # number of episodes aggregated
-    
+   
+    def reset(self):
+        """Reset the estimator for a new outer iteration."""
+        self.table.fill(0.0)
+        self.N = 0
+
     def update_from_batch(self, obs, acts, dones):
         # count episodes in this batch (we assume batch starts with a fresh reset before first step)
         n_eps = int(1 + np.sum(dones > 0.5))
@@ -33,6 +38,7 @@ class TabularEstimator:
     def y_dot_d(self, y_table):
         d = self.value()
         return float((y_table * d).sum())
+    
 
 class FeatureEstimator:
     """
@@ -44,7 +50,11 @@ class FeatureEstimator:
         self.phi_fn, self.d, self.gamma = phi_fn, d, gamma
         self.sum = np.zeros(d, dtype=np.float64)
         self.N = 0
-    
+    def reset(self):
+        """Reset the estimator for a new outer iteration."""
+        self.sum.fill(0.0)
+        self.N = 0
+
     def update_from_batch(self, obs, acts, dones):
         n_eps = int(1 + np.sum(dones > 0.5))
         self.N += max(n_eps, 1)
