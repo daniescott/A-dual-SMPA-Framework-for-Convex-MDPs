@@ -1,0 +1,742 @@
+\documentclass{article}
+
+
+% if you need to pass options to natbib, use, e.g.:
+%     \PassOptionsToPackage{numbers, compress}{natbib}
+% before loading neurips_2022
+
+
+% ready for submission
+%\usepackage{neurips_2022}
+
+
+% to compile a preprint version, e.g., for submission to arXiv, add add the
+% [preprint] option:
+%     \usepackage[preprint]{neurips_2022}
+
+
+% to compile a camera-ready version, add the [final] option, e.g.:
+     \usepackage[final]{neurips_2022}
+
+
+% to avoid loading the natbib package, add option nonatbib:
+%    \usepackage[nonatbib]{neurips_2022}
+
+\usepackage{caption}
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{amsmath}        % for \eqref and other math features
+\usepackage{amssymb}
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{xcolor}         % colors
+\usepackage{pgfgantt}
+\usepackage{tikz}           % pgfgantt requires tikz
+\usepackage{multicol}       % For two-column layout
+\usepackage{enumitem}       % For custom list formatting
+\usepackage{listings}       % For code listings
+
+% Listings setup for Python code
+\lstset{
+    language=Python,
+    basicstyle=\ttfamily\footnotesize,
+    keywordstyle=\color{blue}\bfseries,
+    commentstyle=\color{gray}\itshape,
+    stringstyle=\color{red},
+    showstringspaces=false,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    numbersep=5pt,
+    tabsize=4
+}
+
+% Custom commands
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\cS}{\mathcal{S}}
+\newcommand{\cA}{\mathcal{A}}
+\newcommand{\ind}{\mathbf{1}}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+% Theorem environment for remarks
+\newtheorem{remark}{Remark}
+
+\ganttset{
+  calendar week text={\tiny \currentweek},
+  time slot format=isodate,
+  bar/.append style={fill=black!15},
+  group/.append style={fill=black!10},
+  milestone/.append style={fill=black},
+  progress label text={},
+  link/.style={-latex, thick}
+}
+
+\title{A Dual-SPMA Framework for Convex MDPs}
+
+
+% The \author macro works with any number of authors. There are two commands
+% used to separate the names and addresses of multiple authors: \And and \AND.
+%
+% Using \And between authors leaves it to LaTeX to determine where to break the
+% lines. Using \AND forces a line break at that point. So, if LaTeX puts 3 of 4
+% authors names on the first line, and the last on the second line, try using
+% \AND instead of \And before the third author name.
+
+
+\author{
+  Shervin Khamooshian \quad
+  Ahmed Magd \quad
+  Pegah Aryadoost \quad
+  Danielle Nguyen \\
+  Simon Fraser University \\
+  \texttt{\{ska309, ams80, paa40, tdn8\}@sfu.ca}
+}
+
+
+
+\begin{document}
+\captionsetup{skip=20pt} 
+
+\maketitle
+
+
+\begin{abstract}
+This project empirically studies a unified framework for solving Convex Markov Decision Processes (CMDPs) by combining two key ideas: a Fenchel Duality reformulation and the Softmax Policy Mirror Ascent (SPMA) algorithm. CMDPs generalize standard Reinforcement Learning (RL) to handle objectives with convex constraints and multi-objective trade-offs, but directly solving them is computationally hard due to their high-dimensional constrained space. Using Fenchel duality, we reformulate the CMDP into a min–max problem that alternates between a convex optimization over dual variables and a policy optimization step solvable via SPMA. The project implements this dual–SPMA framework, evaluates its convergence and efficiency, and provides empirical insights into the practicality of dual formulations for CMDPs when combined with efficient policy optimization methods.
+\end{abstract}
+
+
+
+
+\section{Motivation}
+
+While Reinforcement Learning (RL) has demonstrated remarkable success across many domains, the standard formulation remains insufficient for capturing complex real-world objectives. Scenarios involving constraints, multi-objective trade-offs, or imitation learning often require more expressive formulations than conventional RL. The Convex Markov Decision Process (CMDP) framework extends RL to handle such cases by introducing convex objectives and constraints.
+
+Solving CMDPs directly is difficult since it involves optimization over a high-dimensional constrained space of stationary distributions. To address this, prior work has employed Fenchel Duality to reformulate the primal CMDP minimization into a min-max optimization problem that alternates between two simpler subproblems: (i) a \emph{dual update}, maximizing a convex function with respect to the dual variables $y$, and (ii) a \emph{policy update}, solving a standard RL task with a $y$-shaped reward using established policy optimization methods.
+
+To solve the policy subproblem, we adopt the Softmax Policy Mirror Ascent (SPMA) algorithm~\cite{asad2024fast}, a principled approach with provable linear convergence for convex, smooth objectives.
+
+While Fenchel Duality and SPMA exist, their integration in a unified empirical framework is underexplored. The empirical validation of this theoretically-promising dual decomposition remains uninvestigated, a gap this project addresses.
+
+Our project thus aims to empirically implement and analyze this combined framework, developing a solver that is both theoretically grounded and computationally efficient.
+
+
+
+\section{Related Work}
+
+\paragraph{RL formulations beyond linear rewards.}
+Typical MDP objectives can be written as maximizing a linear reward expectation over the occupancy measure \cite{zahavy2021reward}:
+\[
+\max_{d_\pi} \langle r(s,a), d_{\pi}(s,a) \rangle.
+\]
+However, many practical settings are not captured by a simple inner product over state–action pairs. For example, entropy-regularized methods such as SAC \cite{DBLP:journals/corr/abs-1801-01290} introduce diversity via an entropy-regularized objective (e.g., $f(d) = -\langle r, d\rangle - \alpha H(\pi_d)$), and constrained policy optimization \cite{pmlr-v70-achiam17a} imposes inequality constraints (e.g., $\langle c_i, d_\pi \rangle \le B_i$ for one or more cost functions $c_i$).
+
+\paragraph{CMDP Reformulation via Fenchel Duality.}
+A broad class of these objectives can be reformulated as \textit{convex minimization problems} over the occupancy measure, $f(d_\pi)$, yielding the general \textit{Convex MDP (CMDP)} formulation \cite{zahavy2021reward}:
+\[ \min_{d_\pi \in \mathcal{K}} f(d_\pi). \]
+The standard RL problem, $\max_{d_\pi}\langle r,d_\pi\rangle$, is just one simple instance of this, where $f(d_\pi) = \langle -r,d_\pi\rangle$. To solve the \emph{general} problem, we use \textbf{Fenchel duality} to rewrite $f(d_\pi)$ in its conjugate form: $f(d_\pi) = \max_{y} \{ \langle y, d_\pi \rangle - f^*(y) \}$, where $y$ is the dual variable and $f^*$ is the Fenchel conjugate. This transforms the original minimization into the \textbf{minimax saddle-point problem} \cite{DBLP:journals/corr/abs-1906-09323}:
+\[
+\min_{d_\pi \in \mathcal{K}}\max_{y}\ \langle y, d_\pi \rangle - f^*(y).
+\]
+Such saddle-point problems motivate descent–ascent procedures alternating between the minimization and maximization subproblems \cite{DBLP:journals/corr/abs-1906-00331, ying2024policybasedprimaldualmethodsconcave}.
+
+\paragraph{Optimization roles: dual vs. policy player.}
+For the \emph{dual} (maximization) updates, convex first-order methods apply; when strong convexity holds, accelerated rates (e.g., Nesterov) are available \cite{1370862715914709505}. In practice, full gradients can be costly, so SGD/Adam variants are common \cite{kingma2017adammethodstochasticoptimization}. For the \emph{policy} (minimization) side, each fixed dual iterate induces a shaped-reward RL problem solvable with standard policy optimization.
+
+\paragraph{Policy-gradient geometry and SPMA.}
+Geometry-aware updates refine policy gradients via trust regions or mirror maps. TRPO enforces a KL trust region with monotonic improvement \cite{DBLP:journals/corr/SchulmanLMJA15}; PPO relaxes this with clipping but can be hyperparameter sensitive \cite{DBLP:journals/corr/SchulmanWDRK17, lascu2025ppofisherraogeometry}. MDPO casts updates as mirror descent \cite{DBLP:journals/corr/abs-2005-09814}, providing a foundation for later geometry-aware methods. Building on this, SPMA operates in \emph{logit} space with a log-sum-exp mirror map, achieving $O(\log(1/\epsilon))$ convergence and strong empirical performance, and reduces policy updates to convex softmax classification under linear function approximation \cite{asad2024fast}. 
+
+
+\smallskip
+\noindent\textit{Summary.} Prior work (i) shows many RL objectives can be expressed as convex CMDPs via Fenchel duality; (ii) motivates alternating descent–ascent between dual and policy players; and (iii) develops geometry-aware policy optimization where SPMA offers both theoretical and practical advantages. Our study integrates these strands empirically: a dual update for the convex side and SPMA for the policy side within a unified CMDP solver.
+
+
+
+\section{Problem Formulation}
+
+\paragraph{MDP and occupancies.}
+We consider a discounted infinite-horizon MDP $(\mathcal{S},\mathcal{A},P,\rho,\gamma)$ with
+$\gamma\in(0,1)$, start-state distribution $\rho$, and transition kernel
+$P(\cdot| s,a)$. For a stationary policy $\pi$, its discounted state–action occupancy
+measure is
+\[
+d_\pi(s,a) \;=\; (1-\gamma)\sum_{t=0}^\infty \gamma^t\,\Pr_\pi(s_t=s,a_t=a).
+\]
+The feasible occupancies form a convex polytope $\mathcal{D}$ defined by standard flow constraints
+(full form moved for space to Appendix~\ref{app:regularity}). Any $d\!\in\!\mathcal{D}$ induces a policy via
+$\pi(a | s)=\frac{d(s,a)}{\sum_{a'} d(s,a')}$ when the denominator is nonzero.
+
+\paragraph{Convex CMDP objective.}
+Our goal is to minimize a convex function $f:\mathcal{D}\to\mathbb{R}\cup\{+\infty\}$ of the occupancy:
+\begin{equation}
+\min_{\pi}\ f(d_\pi)
+\qquad\Longleftrightarrow\qquad
+\min_{d\in\mathcal{D}}\ f(d).
+\label{eq:primal}
+\end{equation}
+\emph{Examples} include constrained safety and entropy-regularized RL (details in Appendix~\ref{app:objectives}).
+
+\paragraph{Fenchel duality and saddle formulation.}
+Let $f^*$ denote the Fenchel conjugate of $f$, $f^*(y)=\sup_{x\in\mathcal{D}}\langle y,x\rangle - f(x)$.
+By the Fenchel–Moreau representation,
+\[
+f(d_\pi)=\max_{y\in\mathcal{Y}}\ \langle y, d_\pi\rangle - f^*(y),
+\]
+for a suitable dual domain $\mathcal{Y}$. Thus \eqref{eq:primal} is equivalent to
+\begin{equation}
+\min_{\pi}\ \max_{y\in\mathcal{Y}}\ 
+\mathcal{L}(\pi,y)
+\;:=\;
+\langle y, d_\pi\rangle - f^*(y).
+\label{eq:saddle}
+\end{equation}
+This is advantageous because for fixed $y$ we obtain a standard RL problem, and for fixed $\pi$ the
+$y$-update is a convex optimization. For fixed $y$, the term $\langle y,d_\pi\rangle$ corresponds to an RL
+problem with shaped reward ($r_y(s,a)=-y(s,a)$ in tabular form; or $r_y(s,a)=\phi(s,a)^\top y$ with linear features).
+
+\paragraph{Regularity assumptions.}
+We adopt standard conditions (communicating MDP; $f$ proper/closed/convex; compact $\mathcal{D}$) ensuring existence of a saddle point and well-posedness; see Appendix~\ref{app:regularity} for statements and implications.
+
+\paragraph{First-order structure.}
+When $f^*$ is differentiable (else use subgradients), the dual gradient is $\nabla_y \mathcal{L}(\pi,y)= d_\pi - \nabla f^*(y)$.
+For a fixed $y$, the policy player's objective is to solve $\min_{\pi_\theta} \langle y, d_{\pi_\theta} \rangle$. This is
+equivalent to maximizing the standard RL objective $J_y(\pi_\theta) := \langle -y, d_{\pi_\theta} \rangle$
+using the shaped reward $r_y = -y$. The gradients for this saddle-point problem are thus:
+\[
+\nabla_y \mathcal{L}(\pi,y)= d_\pi - \nabla f^*(y), \qquad
+\nabla_\theta J_y(\pi_\theta)= \mathbb{E}_{\pi_\theta}\!\big[\nabla_\theta \log \pi_\theta(a| s)\,Q^{\pi_\theta}_{r_y}(s,a)\big].
+\]
+Our solution framework applies mirror ascent to both players in this min-max game.
+For the dual (maximization) step, we apply a general convex first-order mirror ascent
+method over $\mathcal{Y}$. For the policy (primal) step, we maximize $J_y(\pi_\theta)$
+by employing Softmax Policy Mirror Ascent (SPMA), which is a specific
+mirror ascent algorithm using the log-sum-exp mirror map. Estimators and implementation details
+are in Appendix~\ref{app:practical_estimators}.
+
+
+\section{Plan}
+
+We follow a four-phase plan (see Appendix, Fig.~\ref{fig:timeline}) with milestones on Nov.~10, Dec.~2, and Dec.~15. Tasks run in parallel with clear handovers to keep theory, algorithms, and experiments aligned.
+
+\paragraph{Phase 1: Parallel Foundations (Oct.~22–Nov.~10).}
+\textbf{A} reviews literature on convex MDPs, constrained policy gradients, and related optimization; \textbf{B} defines/implements the environment and sanity-checks it with a standard RL baseline; \textbf{C} implements the SPMA-based main algorithm under the CMDP formulation; \textbf{D} builds comparative CMDP baselines (e.g., constrained PG). \textbf{Milestone (Nov.~10):} review, environment, and both algorithmic branches completed and validated.
+
+\paragraph{Phase 2: Integration (Nov.~10–Nov.~17).}
+\textbf{A} prepares slides; \textbf{B}+\textbf{C} integrate the environment with the main algorithm and run end-to-end tests; \textbf{B}+\textbf{D} repeat integration with comparative methods to check consistency.
+
+\paragraph{Phase 3: Ablation \& Presentation (Nov.~17–Dec.~2).}
+\textbf{C} runs ablations over RL/optimization choices; \textbf{D} varies CMDP objectives; \textbf{A}+\textbf{B} finalize slides and incorporate results as C/D complete analyses. \textbf{Milestone (Dec.~2):} ablations finished and included in the presentation.
+
+\paragraph{Phase 4: Reporting (Dec.~2–Dec.~15).}
+After the Dec.~2 presentation, all members draft, refine, and finalize the report, integrating motivation, methods, and empirical analysis into a cohesive document. \textbf{Milestone (Dec.~15):} final report submitted.
+
+\paragraph{Work Division \& Coordination.}
+Leads: \textbf{A} (theory/writing), \textbf{B} (environments/integration), \textbf{C} (algorithms), \textbf{D} (comparative methods). Weekly syncs maintain visibility; results are cross-validated for correctness and reproducibility.
+
+\paragraph{Expected Outcomes.}
+(i) Primary and comparative CMDP implementations; (ii) verified environment and integrations; (iii) systematic ablations across algorithms/objectives; (iv) a complete presentation and technical report summarizing theoretical and empirical insights.
+
+
+
+
+
+
+\bibliographystyle{plainnat}
+\bibliography{ref}
+
+
+\clearpage
+\appendix
+\section*{Appendix}
+\addcontentsline{toc}{section}{Appendix} % only if you have a ToC
+
+
+\section{Convex Objective Examples}
+\label{app:objectives}
+
+\subsection{Constrained Safety}
+$f(d)=-\langle r,d\rangle+\lambda\,\max\{0,\langle c,d\rangle-\tau\}$,
+where $c$ encodes costs (e.g., collision risk) and $\tau$ is a safety threshold.
+This formulation allows reward maximization while ensuring safety constraints are satisfied.
+
+\subsection{Entropy-Regularized RL}
+$f(d) = -\langle r, d\rangle - \alpha \cdot H(\pi_d)$,
+where $H(\pi_d) = -\sum_{s,a} d(s,a) \log \frac{d(s,a)}{\sum_{a'} d(s,a')}$
+is the entropy of the policy induced by $d$, and $\alpha > 0$ controls exploration.
+This maximum-entropy framework encourages diverse behavior while maximizing reward
+and has been successfully applied in modern deep RL methods such as soft actor-critic.
+
+
+\section{Regularity Assumptions and Their Implications}
+\label{app:regularity}
+
+This appendix explains the regularity assumptions from Section~3 and their role in ensuring well-posedness and convergence of our convex MDP framework.
+
+\subsection{Overview of Assumptions}
+
+We assume:
+\begin{enumerate}
+    \item The MDP is communicating.
+    \item The objective function $f$ is proper, closed, and convex on $\mathcal{D}$
+    \item For discounted problems with $\gamma \in (0,1)$, the feasible set $\mathcal{D}$ is nonempty and compact.
+\end{enumerate}
+
+\subsection{Communicating MDP}
+
+\paragraph{Definition.}
+An MDP is communicating if every state can reach every other state under some policy: for all $(s, s') \in \mathcal{S} \times \mathcal{S}$, there exists policy $\pi$ and finite $T$ with $\Pr_\pi(s_T = s' | s_0 = s) > 0$.
+
+\paragraph{Necessity and Consequences.} \textit{With} communicating assumption we obtain well-defined occupancy measures throughout the state space, meaningful policy gradients everywhere, and no dead-end states that trap policies; \textit{without} it, consider a dead-end state $s_{\text{trap}}$ with $P(s_{\text{trap}} | s_{\text{trap}}, a) = 1$ for all $a$ where once entered, all occupancy mass concentrates there ($\lim_{t \to \infty} d_\pi(s_{\text{trap}}, \cdot) \to 1$), causing ill-defined policy gradients for other states, SPMA failures due to zero probabilities, and unbounded dual variables.
+
+\subsection{Properties of Objective Function \texorpdfstring{$f$}{f}}
+
+\subsubsection{Proper}
+
+\paragraph{Definition.}
+Function $f$ is proper if $f(d) > -\infty$ for all $d \in \mathcal{D}$ and $f(d) < +\infty$ for at least one $d$.
+
+\paragraph{Necessity and Consequences.}
+\textit{With} properness the minimization problem is bounded below, at least one feasible solution exists, and the Fenchel conjugate $f^*(y) = \sup_{d \in \mathcal{D}} \langle y, d \rangle - f(d)$ is well-defined; \textit{without} it, if $f(d) = -\infty$ for some $d$, optimization is unbounded below, if $f(d) = +\infty$ for all $d$, the problem is infeasible, and in either case the Fenchel conjugate becomes undefined.
+
+\subsubsection{Closed}
+
+\paragraph{Definition.}
+Function $f$ is closed (lower semicontinuous) if its epigraph $\text{epi}(f) = \{(d, \alpha) : f(d) \leq \alpha\}$ is closed, or equivalently, $f(d) \leq \liminf_{n \to \infty} f(d_n)$ for any sequence $\{d_n\} \to d$.
+
+\paragraph{Necessity and Consequences.}
+\textit{With} closedness minimizers exist (infimum is attained), limit points of converging sequences remain feasible, and the Fenchel-Moreau duality $f = f^{**}$ holds, ensuring exact duality with zero gap; \textit{without} it, the infimum may not be attained (optimal solution doesn't exist), converging sequences may have strictly better values than their limits, and Fenchel duality may have a gap, making our saddle formulation inexact.
+
+\subsubsection{Convex}
+
+\paragraph{Definition.}
+Function $f$ is convex if $f(\lambda d_1 + (1-\lambda) d_2) \leq \lambda f(d_1) + (1-\lambda) f(d_2)$ for all $d_1, d_2 \in \mathcal{D}$ and $\lambda \in [0,1]$.
+
+\paragraph{Necessity and Consequences.}
+\textit{With} convexity we obtain exact Fenchel duality (zero gap, so solving the dual solves the primal), any local minimum is global, subgradients exist everywhere, and the dual problem over $y$ is convex with convergence guarantees; \textit{without} it, a duality gap emerges ($\min_\pi \max_y \mathcal{L} \neq \max_y \min_\pi \mathcal{L}$) so our algorithm optimizes the wrong objective, multiple local minima trap optimization, SPMA's convergence guarantees fail, and saddle points may not exist.
+
+\paragraph{Verification for Our Objectives.}
+Our examples are convex:
+\begin{itemize}
+    \item \textbf{Constrained safety}: $f(d) = -\langle r, d \rangle + \lambda \max\{0, \langle c, d \rangle - \tau\}$ is a sum of linear (convex) and composition of max (convex) with linear (convex), hence convex.
+    \item \textbf{Entropy-regularized}: $f(d) = -\langle r, d \rangle - \alpha H(\pi_d)$ is a sum of linear and negative entropy (convex), hence convex.
+\end{itemize}
+
+\subsection{Nonemptiness and Compactness of \texorpdfstring{$\mathcal{D}$}{D}}
+
+\paragraph{Nonemptiness.}
+For any MDP with $\gamma \in (0,1)$, nonemptiness is automatic: any policy $\pi$ induces a valid occupancy $d_\pi \in \mathcal{D}$. Without nonemptiness, the problem is vacuous.
+
+\paragraph{Compactness.}
+For discounted MDPs, $\mathcal{D}$ is compact: it is \textit{bounded} because $\sum_{s,a} d_\pi(s,a) = (1-\gamma) \sum_{t=0}^\infty \gamma^t = 1$, so $d_\pi$ lies in the unit simplex. It is \textit{closed} because the flow constraints are linear equations, making $\mathcal{D}$ the intersection of the positive orthant (closed) with an affine subspace (closed).
+
+\paragraph{Necessity and Consequences.}
+\textit{With} compactness saddle points exist (Minimax Theorem), minimizers exist (Extreme Value Theorem), iterates $\{(\pi_k, y_k)\}$ remain bounded with convergent subsequences, and dual variables stay bounded; \textit{without} it, there is no saddle point guarantee, the infimum may not be attained, iterates may diverge to infinity, and convergence proofs break down.
+
+\subsection{Additional Conditions for Fast Convergence}
+
+\paragraph{Strong Convexity of $f^*$.}
+If $f^*$ is $\mu$-strongly convex ($f^*(\lambda y_1 + (1-\lambda) y_2) \leq \lambda f^*(y_1) + (1-\lambda) f^*(y_2) - \frac{\mu}{2} \lambda(1-\lambda) \|y_1 - y_2\|^2$), then gradient methods achieve \textit{linear} convergence $O((1 - \mu/L)^k)$ instead of sublinear $O(1/k)$, with better conditioning and stable updates; if $f^*$ lacks strong convexity, add regularization $f_\epsilon(d) = f(d) + \frac{\epsilon}{2}\|d\|^2$ to make $f_\epsilon^*$ strongly convex.
+
+\subsection{Summary}
+
+\begin{table}[h!]
+\centering
+\small
+\begin{tabular}{|p{2.5cm}|p{4.8cm}|p{4.8cm}|}
+\hline
+\textbf{Assumption} & \textbf{With} & \textbf{Without} \\
+\hline
+Communicating MDP & Well-defined occupancy; meaningful gradients & Degenerate distributions; trapped states \\
+\hline
+$f$ proper & Bounded problem; feasible solution exists & Unbounded or infeasible \\
+\hline
+$f$ closed & Minimizer exists; exact duality & Infimum not attained; duality gap \\
+\hline
+$f$ convex & Exact duality; global optimality; convergence & Duality gap; local minima; wrong objective \\
+\hline
+$\mathcal{D}$ compact & Saddle point exists; bounded iterates & No saddle point; diverging iterates \\
+\hline
+$f^*$ strongly convex & Linear convergence; stable updates & Slow sublinear convergence \\
+\hline
+\end{tabular}
+\caption{Summary of regularity assumptions and their implications.}
+\end{table}
+
+\textbf{Together}, these assumptions ensure: (1)~the problem is well-posed with a unique solution, (2)~Fenchel duality is exact with zero gap, (3)~our alternating optimization converges to the global optimum, and (4)~convergence is fast (linear rate under strong convexity). Without them, the algorithm may fail to converge, converge to suboptimal solutions, or optimize an incorrect objective.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% APPENDIX C: Practical Estimation of Occupancy Measures (Updated)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Practical Estimation of Occupancy Measures}
+\label{app:practical_estimators}
+
+While the problem formulation defines the occupancy measure $d_\pi(s,a)$ mathematically, implementing our algorithm requires \textit{practical methods} to estimate $d_\pi$ from simulation data. This appendix details two complementary approaches: one for tabular settings and one for function approximation. We also provide a detailed variance analysis and discuss connections to recent theoretical work.
+
+\subsection{Why We Need to Estimate \texorpdfstring{$d_\pi$}{d\_pi}}
+
+The dual gradient from Section~3 requires the occupancy measure:
+\[
+\nabla_y \mathcal{L}(\pi,y) = d_\pi - \nabla f^*(y).
+\]
+While $d_\pi$ has a formal definition as an infinite sum, we must estimate it from finite simulation data. The estimation method depends on the problem scale:
+\begin{itemize}
+    \item \textbf{Tabular settings}: Direct Monte Carlo estimation (Section~\ref{sec:tabular})
+    \item \textbf{Large/continuous spaces}: Linearized function approximation (Section~\ref{sec:fa})
+\end{itemize}
+
+\subsection{Tabular Case: Direct Occupancy Estimation}
+\label{sec:tabular}
+
+\paragraph{Setting.}
+When the state-action space is small (e.g., fewer than 10,000 pairs) and discrete, we can explicitly track visits to each $(s,a)$ pair.
+
+\paragraph{Estimator.}
+A Monte Carlo estimate of the discounted occupancy measure is obtained by running $N$ trajectories (rollouts) and averaging the discounted visits:
+\[
+\hat{d}_\pi(s,a) = \frac{1-\gamma}{N}\sum_{i=1}^N \sum_{t=0}^{T_i} \gamma^t \ind[s_t^{(i)}=s, a_t^{(i)}=a],
+\]
+where $T_i$ is the length of the $i$-th trajectory, and $\ind[\cdot]$ is the indicator function.
+
+\paragraph{Theoretical Justification.}
+This is an unbiased Monte Carlo estimator: $\E[\hat{d}_\pi(s,a)] = d_\pi(s,a)$.
+By the Law of Large Numbers, as $N \to \infty$, $\hat{d}_\pi(s,a) \to d_\pi(s,a)$.
+
+\paragraph{Use in Algorithm.}
+In the outer loop, after running SPMA to update the policy $\pi$:
+\begin{enumerate}
+    \item Estimate $\hat{d}_\pi$ using the procedure above.
+    \item Compute the dual gradient: $\nabla_y \mathcal{L} = \hat{d}_\pi - \nabla f^*(y)$
+    \item Update $y \leftarrow y + \eta \cdot \nabla_y \mathcal{L}$ (or a mirror ascent step).
+\end{enumerate}
+
+\subsection{Function Approximation: Linearized Dual Variables}
+\label{sec:fa}
+
+\paragraph{Setting.}
+When the state-action space is large or continuous, we cannot enumerate all $(s,a)$ pairs.
+
+\paragraph{Dual-Variable Parameterization.}
+Following the approach in \cite{zahavy2021reward, barakat2024global}, we parameterize the dual variable as:
+\begin{equation}
+y(s, a) = \phi(s, a)^\top w,
+\label{eq:linear-param}
+\end{equation}
+where $\phi: \cS \times \cA \to \R^d$ is a feature map and $w \in \R^d$ is the learnable parameter.
+
+\paragraph{Key Identity: Linearization with Respect to $w$.}
+The inner product $\langle y, d_\pi \rangle$ can be rewritten using the discounted return identity:
+\begin{align}
+\langle y, d_\pi \rangle &= (1 - \gamma) \, \E_\tau \left[ \sum_{t \geq 0} \gamma^t y(s_t, a_t) \right]
+\end{align}
+where $\tau \sim \pi$ denotes a trajectory sampled under policy $\pi$. After plugging in $y(s,a) = \phi(s,a)^\top w$:
+\begin{equation}
+\langle y, d_\pi \rangle = \langle w, \mu_\pi \rangle, \quad \text{where} \quad \mu_\pi := \E_{d_\pi}[\phi(s,a)].
+\label{eq:linearization}
+\end{equation}
+
+\noindent\textbf{Key Insight (Linearization).}
+Instead of estimating $d_\pi(s,a)$ for all $(s,a)$ pairs (scaling as $|\cS| \times |\cA|$), we only need to estimate the feature expectation vector $\mu_\pi = \E_{d_\pi}[\phi] \in \R^d$.
+
+\paragraph{Feature Expectation Estimator.}
+We estimate $\mu_\pi$ by Monte Carlo:
+\begin{equation}
+\hat{\mu}_\pi = (1 - \gamma) \cdot \frac{1}{N} \sum_{i=1}^{N} \sum_{t=0}^{T_i} \gamma^t \phi(s_t^{(i)}, a_t^{(i)}).
+\label{eq:feature-estimator}
+\end{equation}
+Equivalently, defining the discounted feature sum for a single trajectory as $G_\phi := (1-\gamma) \sum_t \gamma^t \phi(s_t, a_t) \in \R^d$, then $\hat{\mu}_\pi = \frac{1}{N} \sum_{i=1}^{N} G_\phi^{(i)}$.
+
+\paragraph{Dual Gradient in Function Approximation.}
+The gradient of the Lagrangian with respect to $w$ is:
+\begin{equation}
+\nabla_w \mathcal{L}(\pi, w) = \mu_\pi - \nabla f^*(w),
+\label{eq:dual-gradient-fa}
+\end{equation}
+with $\mu_\pi$ replaced by the Monte Carlo estimator $\hat{\mu}_\pi$.
+
+\subsection{Variance Analysis: Dependence on Feature Dimension \texorpdfstring{$d$}{d}}
+\label{sec:variance}
+
+A key concern is that the estimation variance of our Monte Carlo estimator \textbf{grows with the feature dimension $d$}.
+
+\paragraph{Setup.}
+Suppose each feature coordinate is bounded: $|\phi_j(s,a)| \leq 1$ for all $j \in \{1, \ldots, d\}$. For one trajectory, define the discounted feature sum $G_\phi := (1-\gamma) \sum_t \gamma^t \phi(s_t, a_t) \in \R^d$. Then $\hat{\mu}_\pi$ is the empirical mean of $G_\phi$ across $N$ rollouts.
+
+\paragraph{Variance Bound.}
+By standard concentration inequalities, the mean-squared error is:
+\begin{equation}
+\boxed{\E\left[\|\hat{\mu}_\pi - \mu_\pi\|_2^2\right] = O\left(\frac{d}{N}\right)}
+\label{eq:variance-bound}
+\end{equation}
+This means the vector gradient noise $\widehat{\nabla_w \mathcal{L}} - \nabla_w \mathcal{L} = \hat{\mu}_\pi - \mu_\pi$ has typical size $\|\hat{\mu}_\pi - \mu_\pi\|_2 \sim \sqrt{d/N}$.
+
+\paragraph{Implications for Sample Complexity: variance explodes with feature dimension $d$.}
+% \noindent\textbf{Key Issue (Variance Explodes with $d$).}
+To keep the gradient noise at a constant level as $d$ grows, we need $N = \Theta(d)$ trajectories per outer iteration. 
+
+% This is the ``variance explodes with feature dimension'' effect.
+
+\begin{remark}[Scalar vs.\ Vector Estimation]
+If we only cared about the \textbf{scalar} quantity $\langle w, \mu_\pi \rangle$ with $\|w\|$ bounded, variance could stay independent of $d$. However, for updating the whole vector $w$, we care about the full $d$-dimensional error, which scales with $d$.
+\end{remark}
+
+\subsection{Connection to Qishi's ``Convex MDPs'' Note}
+\label{sec:convex-mdps-note}
+
+The ``Convex MDPs'' note provided by Qishi is a compact version of the derivation in Section~\ref{sec:fa}.
+
+\paragraph{Dual Parameterization.}
+The note parameterizes the dual variable as $\lambda_\theta(s,a) = \langle \phi(s,a), \theta \rangle$, identical to our $y(s,a) = \phi(s,a)^\top w$.
+
+\paragraph{FTRL-Style Dual Update.}
+Using the discounted occupancy identity, the note rewrites the dual update as:
+\begin{equation}
+\lambda^k = \argmax_{\theta \in \R^d} \left\{ (1-\gamma) \sum_{j=1}^{k} \E_{\pi^j}\left[\sum_t \gamma^t \phi(s_t, a_t)\right] \cdot \theta - k \cdot f^*(\langle \phi, \theta \rangle) \right\},
+\label{eq:ftrl-from-note}
+\end{equation}
+and proposes to estimate those expectations by sampling from each policy $\pi^j$.
+
+\noindent\textbf{Structural Agreement.}
+Both our Appendix C and Qishi's note say: ``We need discounted feature expectations, so we estimate them by Monte Carlo.'' The variance issue (Section~\ref{sec:variance}) is implicit in that note but not analyzed there---our analysis makes it explicit.
+
+\subsection{What the Barakat et al.\ Paper Adds}
+\label{sec:barakat}
+
+The Barakat et al.\ ``On the Global Optimality of Policy Gradient Methods'' paper \cite{barakat2024global} addresses occupancy estimation in large spaces. Two key contributions are relevant.
+
+\paragraph{(a) Low-Rank / Linear Structure of Occupancies.}
+In Appendix C of \cite{barakat2024global}, they show that in a \textbf{low-rank MDP} there exist ``density features'' $\mu(s) \in \R^d$ such that \textbf{every} occupancy measure lies in their span:
+\begin{equation}
+d_\pi(s) = \rho(s) + \langle \omega_\pi, \mu(s) \rangle
+\label{eq:low-rank-occupancy}
+\end{equation}
+for some vector $\omega_\pi \in \R^d$. This is similar to our dual parameterization:
+\begin{itemize}
+    \item \textbf{Our approach}: Dual is linear in \emph{state-action} features: $y(s,a) = \phi(s,a)^\top w$
+    \item \textbf{Their result}: Occupancy is affine in \emph{state} density features: $d_\pi(s) = \rho(s) + \mu(s)^\top \omega_\pi$
+\end{itemize}
+Both say: \emph{a huge object (function over $\cS \times \cA$ or $\cS$) really lives in a $d$-dimensional subspace.}
+
+\paragraph{(b) MLE-Based Occupancy Estimation with Error $\propto \sqrt{d/n}$.}
+Instead of coordinate-wise Monte Carlo means, Barakat et al.\ treat the occupancy measure $\lambda_\pi$ as a \textbf{parametric density} $p_\omega(x)$ (e.g., $p_\omega(x) = g(\omega^\top \phi(x))$) and fit $\omega$ via \textbf{maximum likelihood estimation (MLE)}.
+
+Under mild assumptions, they prove (Proposition 1 in \cite{barakat2024global}):
+\begin{equation}
+\boxed{\|\hat{\lambda}_\pi - \lambda_\pi\|_1 \lesssim \sqrt{\frac{m \log n}{n}}}
+\label{eq:mle-bound}
+\end{equation}
+with high probability, where $m$ is the parameter dimension. The sample complexity to achieve TV error $\leq \varepsilon$ is $n = \tilde{O}(m / \varepsilon^2)$, \textbf{independent of $|\cS||\cA|$}.
+
+\paragraph{Why Regression / MSE Fails in Large Spaces.}
+Barakat et al.\ argue that MSE-style estimators can have errors that scale with the size of the space. In a toy example, MSE can be tiny while total variation distance is huge---this discrepancy scales with space size. This is exactly the ``blow up'' our Monte Carlo gradient suffers from.
+
+\subsection{Summary: Current Implementation and What to tweak}
+
+\paragraph{Our Current FA Estimator.}
+\begin{enumerate}[label=(\alph*)]
+    \item We estimate the discounted feature expectation $\mu_\pi = \E_{d_\pi}[\phi(s,a)]$ via Monte Carlo (Equation~\ref{eq:feature-estimator}).
+    \item The dual gradient in FA is $\nabla_w \mathcal{L} = \mu_\pi - \nabla f^*(w)$ (Equation~\ref{eq:dual-gradient-fa}).
+    \item Because $\mu_\pi \in \R^d$, variance scales like $O(d/N)$ in squared norm (Equation~\ref{eq:variance-bound}).
+    \item \textbf{To keep gradient noise fixed, we need $N = \Theta(d)$ trajectories per iteration.}
+\end{enumerate}
+
+\paragraph{Connection to Theoretical Work.}
+\begin{enumerate}[label=(\alph*)]
+    \item \textbf{Qishi's note}: Uses the same linear FA and discounted-feature-identity. Our Appendix C expands this and gives a concrete Monte Carlo estimator.
+    \item \textbf{Barakat et al.}: Shows occupancy measures have linear structure in low-rank MDPs. Uses MLE instead of MC means, getting TV error $O(\sqrt{d/n})$ independent of $|\cS||\cA|$.
+\end{enumerate}
+
+\paragraph{To update in our current implementation.}
+% In future iterations, one could:
+\begin{enumerate}[label=(\roman*)]
+    \item \textbf{Assume a low-rank MDP structure} and parameterize the occupancy directly as in Equation~\ref{eq:low-rank-occupancy}.
+    \item \textbf{Replace the MC feature-mean estimator} with an MLE-based occupancy estimator whose error scales as $O(\sqrt{d/n})$ in TV distance.
+\end{enumerate}
+
+\subsection{Complexity Comparison}
+
+\begin{table}[h!]
+\centering
+\small
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{Aspect} & \textbf{Tabular MC} & \textbf{FA (Ours, MC)} & \textbf{FA (MLE, Barakat)} \\
+\hline
+What is estimated & $d_\pi(s,a)$ $\forall (s,a)$ & $\mu_\pi \in \R^d$ & $\omega_\pi \in \R^m$ \\
+\hline
+Storage & $O(|\cS| \cdot |\cA|)$ & $O(d)$ & $O(m)$ \\
+\hline
+Estimation error & $O\left(\sqrt{\frac{|\cS||\cA|}{N}}\right)$ & $O\left(\sqrt{\frac{d}{N}}\right)$ & $O\left(\sqrt{\frac{m}{n}}\right)$ \\
+\hline
+Error metric & $\ell_2$ & $\ell_2$ & TV ($\ell_1$) \\
+\hline
+Depends on $|\cS||\cA|$? & Yes & No & No \\
+\hline
+\end{tabular}
+\caption{Complexity comparison across estimation methods.}
+\label{tab:complexity}
+\end{table}
+
+\begin{table}[h!]
+\centering
+\small
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{Aspect} & \textbf{Original (Gradient Ascent)} & \textbf{Updated (FTRL)} \\
+\hline
+Update style & $w \leftarrow w + \alpha \nabla_w \mathcal{L}$ & $w = \text{cumsum} / (k \cdot \lambda)$ \\
+\hline
+Feature expectations & Current: $\E_{\pi^k}[\phi]$ & Cumulative: $\sum_{j=1}^k \E_{\pi^j}[\phi]$ \\
+\hline
+Step-size & Requires tuning $\alpha$ & Implicit via $f^*$ regularization \\
+\hline
+Theory connection & Gradient-based analysis & OCO regret $\to O(1/\sqrt{K})$ \\
+\hline
+Memory & $O(d)$ & $O(d)$ \\
+\hline
+\end{tabular}
+\caption{Comparison of gradient ascent and FTRL dual update schemes.}
+\label{tab:update-comparison}
+\end{table}
+
+\subsection{Implementation Details}
+\label{sec:implementation}
+
+\paragraph{Feature Map Design.}
+For continuous control tasks (e.g., Pendulum-v1), we use polynomial features:
+\[
+\phi(s, a) = [s, a, s^2, a^2]^\top \in \R^d,
+\]
+where $d = \dim(s) + \dim(a) + \dim(s) + \dim(a)$. For Pendulum-v1 specifically: $\dim(s) = 3$, $\dim(a) = 1$, so $d = 8$.
+
+\paragraph{Updated \texttt{FeatureEstimatorFTRL} Class.}
+
+\begin{lstlisting}[caption={Updated FeatureEstimator class for FTRL with variance tracking}]
+class FeatureEstimatorFTRL:
+    """
+    Cumulative discounted feature expectations for FTRL updates.
+    Tracks variance for diagnostics.
+    """
+    def __init__(self, phi_fn, d: int, gamma: float):
+        self.phi_fn = phi_fn
+        self.d = d
+        self.gamma = gamma
+        self.cumulative_sum = np.zeros(d, dtype=np.float64)
+        self.iteration = 0
+        # For variance tracking
+        self.sum_of_squares = np.zeros(d, dtype=np.float64)
+    
+    def update_from_batch(self, obs, acts, dones):
+        """Add this iteration's feature expectations to cumulative sum."""
+        gpow = 1.0
+        episode_phi_sums = []
+        current_sum = np.zeros(self.d, dtype=np.float64)
+        
+        for t in range(len(acts)):
+            phi = self.phi_fn(obs[t], acts[t])
+            current_sum += (1.0 - self.gamma) * gpow * phi
+            gpow *= self.gamma
+            if dones[t] > 0.5:
+                episode_phi_sums.append(current_sum.copy())
+                current_sum = np.zeros(self.d)
+                gpow = 1.0
+        
+        if len(episode_phi_sums) > 0:
+            ephi_hat = np.mean(episode_phi_sums, axis=0)
+            self.cumulative_sum += ephi_hat
+            for g in episode_phi_sums:
+                self.sum_of_squares += g**2
+        
+        self.iteration += 1
+        return ephi_hat if len(episode_phi_sums) > 0 else np.zeros(self.d)
+    
+    def get_ftrl_weight(self, lam: float):
+        """Return FTRL solution: w = cumsum / (k * lam)."""
+        if self.iteration == 0:
+            return np.zeros(self.d)
+        return self.cumulative_sum / (self.iteration * lam)
+    
+    def estimate_variance(self, N_total_episodes: int):
+        """Estimate Var[G_phi], which scales as O(d/N)."""
+        if N_total_episodes == 0:
+            return np.zeros(self.d)
+        mean_sq = self.sum_of_squares / N_total_episodes
+        mean = self.cumulative_sum / self.iteration
+        var_per_coord = mean_sq - mean**2
+        total_var = np.sum(var_per_coord)
+        return total_var, var_per_coord
+\end{lstlisting}
+
+
+\section{Timeline (Supplemental)}
+% Begin Danie's Proposal of organization for Plan section
+% Gantt chart
+\begin{figure}[h!]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{ganttchart}[
+    x unit=2.8mm,
+    y unit chart=4.5mm,
+    vgrid={*7{draw=none}, dotted},
+    hgrid,
+    time slot format=isodate,
+    title/.append style={fill=gray!10},
+    title height=0.65,
+    title label font=\tiny,
+    group/.append style={fill=blue!12},
+    bar/.append style={fill=blue!6, draw=blue!40, line width=0.3pt},
+    milestone/.append style={fill=red!70, draw=red!70, shape=diamond, inner sep=1pt},
+    group peaks height=0.12,
+    bar height=0.45,
+    bar label font=\tiny,
+    group label font=\tiny\bfseries
+  ]{2025-10-22}{2025-12-15}
+  
+  % Compact title
+  \gantttitle{\scriptsize Oct 22 -- Dec 15, 2025}{55} \\
+  \gantttitle{\tiny Week 1-2}{14}
+  \gantttitle{\tiny Week 3-4}{14}
+  \gantttitle{\tiny Week 5-6}{14}
+  \gantttitle{\tiny Week 7-8}{13} \\
+  
+  % Phase 1: Parallel Foundations
+  \ganttgroup{\scriptsize Phase 1: Foundations}{2025-10-22}{2025-11-10} \\
+  \ganttbar{\tiny A: Lit review (CMDP, PG)}{2025-10-22}{2025-11-10} \\
+  \ganttbar{\tiny B: Env setup + sanity check}{2025-10-22}{2025-11-10} \\
+  \ganttbar{\tiny C: SPMA implementation}{2025-10-22}{2025-11-10} \\
+  \ganttbar{\tiny D: Alt CMDP algorithms}{2025-10-22}{2025-11-10} \\
+  \ganttmilestone{\tiny M1: Lit review}{2025-11-10} \\[grid]
+  
+  % Phase 2: Integration
+  \ganttgroup{\scriptsize Phase 2: Integration}{2025-11-10}{2025-11-17} \\
+  \ganttbar{\tiny A: Prepare slides}{2025-11-10}{2025-11-17} \\
+  \ganttbar{\tiny B+C: Env + SPMA integration}{2025-11-10}{2025-11-17} \\
+  \ganttbar{\tiny B+D: Env + Alt CMDP integration}{2025-11-10}{2025-11-17} \\[grid]
+  
+  % Phase 3: Ablation
+  \ganttgroup{\scriptsize Phase 3: Ablation \& Prep}{2025-11-17}{2025-12-02} \\
+  \ganttbar{\tiny C: RL/opt ablations}{2025-11-17}{2025-12-02} \\
+  \ganttbar{\tiny D: CMDP objective ablations}{2025-11-17}{2025-12-02} \\
+  \ganttbar{\tiny A+B: Finalize presentation}{2025-11-17}{2025-12-02} \\
+  \ganttmilestone{\tiny M2: Present}{2025-12-02} \\[grid]
+  
+  % Phase 4: Reporting
+  \ganttgroup{\scriptsize Phase 4: Final Report}{2025-12-02}{2025-12-15} \\
+  \ganttbar{\tiny All: Draft \& refine report}{2025-12-02}{2025-12-15} \\
+  \ganttmilestone{\tiny M3: Submit}{2025-12-15}
+  
+\end{ganttchart}}
+\vspace{-8pt}
+\caption{\small Project timeline with four phases and team coordination (A, B, C, D).}
+\label{fig:timeline}
+\end{figure}
+
+
+\end{document}
