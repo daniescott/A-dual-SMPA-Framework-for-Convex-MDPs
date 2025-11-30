@@ -1,0 +1,1085 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\usepackage{hyperref}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+
+% Colors
+\definecolor{speakercolor}{RGB}{0,102,204}
+\definecolor{slidecolor}{RGB}{128,0,128}
+\definecolor{proncolor}{RGB}{0,128,0}
+
+% Custom commands
+\newcommand{\slide}[2]{%
+  \subsection*{\textcolor{slidecolor}{Slide #1 --- \textit{#2}}}
+}
+\newcommand{\speaker}[1]{%
+  \textbf{\textcolor{speakercolor}{Speaker: #1}}\\[0.5em]
+}
+\newcommand{\pron}[1]{\textcolor{proncolor}{\textsf{[#1]}}}
+
+% Tcolorbox for notation guide
+\newtcolorbox{notationbox}[1][]{
+  colback=green!5,
+  colframe=green!50!black,
+  title=Pronunciation Guide,
+  fonttitle=\bfseries,
+  #1
+}
+
+% Header/Footer
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Dual--SPMA Speaker Script}
+\lhead{CMPT 409/981 Project}
+\rfoot{Page \thepage}
+
+\title{\textbf{Dual--SPMA Framework for Convex MDPs}\\[0.5em]
+\Large Speaker Script with Pronunciation Guide}
+\author{Pegah Aryadoost \and Danielle Nguyen \and Shervin Khamooshian \and Ahmed Magd}
+\date{December 2025}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+%============================================================================
+\section*{Speaker Assignments}
+%============================================================================
+\begin{center}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Speaker} & \textbf{Section} & \textbf{Slides} \\
+\hline
+Pegah & Background \& Motivation & 1--9 \\
+Danielle & Problem Formulation \& Fenchel Duality & 10--17 \\
+Shervin & Related Work \& Our Method & 18--27 \\
+Ahmed & Experiments \& Conclusion & 28--36 \\
+\hline
+\end{tabular}
+\end{center}
+
+%============================================================================
+\section*{Notation Pronunciation Guide}
+%============================================================================
+
+\begin{notationbox}
+\textbf{Greek Letters:}
+\begin{itemize}[noitemsep]
+  \item $\pi$ \pron{pie} --- policy
+  \item $\gamma$ \pron{gamma} --- discount factor
+  \item $\rho$ \pron{rho} --- initial state distribution
+  \item $\alpha$ \pron{alpha} --- step size / entropy coefficient
+  \item $\beta$ \pron{beta} --- dual step size
+  \item $\lambda$ \pron{lambda} --- Lagrange multiplier / dual variable
+  \item $\mu$ \pron{mu} --- penalty weight
+  \item $\tau$ \pron{tau} --- constraint threshold
+  \item $\eta$ \pron{eta} --- learning rate / step size
+  \item $\theta$ \pron{theta} --- policy parameters
+  \item $\omega$ \pron{omega} --- dual parameters
+  \item $\phi$ \pron{phi} --- feature function
+\end{itemize}
+
+\textbf{Calligraphic Letters:}
+\begin{itemize}[noitemsep]
+  \item $\mathcal{S}$ \pron{script-S / curly-S} --- state space
+  \item $\mathcal{A}$ \pron{script-A / curly-A} --- action space
+  \item $\mathcal{D}$ \pron{script-D / curly-D} --- set of feasible occupancy measures
+\end{itemize}
+
+\textbf{Functions and Operators:}
+\begin{itemize}[noitemsep]
+  \item $f^*$ \pron{f-star} --- Fenchel conjugate of $f$
+  \item $\nabla$ \pron{nabla / del / gradient} --- gradient operator
+  \item $\sup$ \pron{soup / supremum} --- least upper bound
+  \item $\inf$ \pron{infimum} --- greatest lower bound
+  \item $\mathbb{E}$ \pron{E / expectation} --- expected value
+  \item $\langle \cdot, \cdot \rangle$ \pron{inner product / angle brackets} --- dot product
+  \item $\sum$ \pron{sum / sigma} --- summation
+  \item $\prod$ \pron{product / pi} --- product
+  \item $|\mathcal{S}|$ \pron{size of S / cardinality of S} --- number of states
+  \item $[\cdot]_+$ \pron{positive part / ReLU} --- $\max(0, \cdot)$
+\end{itemize}
+
+\textbf{Key Terms:}
+\begin{itemize}[noitemsep]
+  \item $d_\pi(s,a)$ \pron{d-pi of s-a} --- occupancy measure under policy $\pi$
+  \item $J(\pi)$ \pron{J of pi} --- expected return of policy $\pi$
+  \item $J_r(\pi)$ \pron{J-r of pi} --- reward return
+  \item $J_c(\pi)$ \pron{J-c of pi} --- cost return
+  \item $V^\pi(s)$ \pron{V-pi of s} --- value function
+  \item $Q^\pi(s,a)$ \pron{Q-pi of s-a} --- action-value function
+  \item $A^\pi(s,a)$ \pron{A-pi of s-a} --- advantage function
+  \item $L(\pi, y)$ \pron{L of pi-y / Lagrangian} --- saddle-point objective
+  \item $r_y$ \pron{r-sub-y / r-y} --- shaped reward
+  \item $P(s'|s,a)$ \pron{P of s-prime given s-a} --- transition probability
+\end{itemize}
+
+\textbf{Subscripts/Superscripts:}
+\begin{itemize}[noitemsep]
+  \item $s_t$ \pron{s-sub-t / s at time t} --- state at time $t$
+  \item $a_t$ \pron{a-sub-t / a at time t} --- action at time $t$
+  \item $\pi_k$ \pron{pi-sub-k / pi at iteration k} --- policy at iteration $k$
+  \item $y_k$ \pron{y-sub-k} --- dual variable at iteration $k$
+  \item $\pi^*$ \pron{pi-star / optimal pi} --- optimal policy
+  \item $\hat{d}_\pi$ \pron{d-hat-pi / estimated d-pi} --- estimated occupancy
+\end{itemize}
+\end{notationbox}
+
+\newpage
+
+%============================================================================
+\section{Background \& Motivation (Speaker: Pegah)}
+%============================================================================
+
+%----------------------------------------------------------------------------
+\slide{1}{A Dual--SPMA Framework for Convex MDPs}
+\speaker{Pegah}
+
+\begin{itemize}
+  \item ``Hi everyone, thanks for being here. I'm Pegah, and this project is joint work with Ahmed, Shervin, and Danielle from SFU's School of Computing Science.''
+  
+  \item ``Our title is `A Dual--SPMA Framework for Convex MDPs'.''
+  
+  \item ``The one-sentence claim for this talk is: \textbf{combining Fenchel duality with a fast policy optimizer, SPMA, gives a simple and fairly competitive way to solve convex MDPs}.''
+  
+  \item ``We'll compare this `Dual--SPMA' recipe against a strong baseline called NPG--PD, which is a natural policy-gradient primal--dual method.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{2}{Outline}
+\speaker{Pegah}
+
+\begin{itemize}
+  \item ``Here's the plan for the next 20--25 minutes.''
+  
+  \item ``First, I'll quickly review basic reinforcement learning background.''
+  
+  \item ``Then I'll motivate \textbf{convex MDPs}---why we care about them beyond standard RL.''
+  
+  \item ``Danielle will talk about the core math: how we use Fenchel duality to turn a convex MDP into a saddle-point problem.''
+  
+  \item ``Shervin will cover related work and explain our method, Dual--SPMA.''
+  
+  \item ``Ahmed will present our experiments and results.''
+  
+  \item ``Finally we'll wrap up with takeaways and future work.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{3}{What is Reinforcement Learning?}
+\speaker{Pegah}
+
+\begin{itemize}
+  \item ``Let's start with a quick refresh on RL.''
+  
+  \item ``In reinforcement learning, an \textbf{agent} interacts with an \textbf{environment} repeatedly over time.''
+  
+  \item ``At each time step $t$ \pron{t}:
+  \begin{enumerate}
+    \item the agent observes a state $s_t$ \pron{s-sub-t},
+    \item chooses an action $a_t$ \pron{a-sub-t} according to some policy,
+    \item receives a reward $r_t$ \pron{r-sub-t},
+    \item and the environment transitions to a new state $s_{t+1}$ \pron{s-sub-t-plus-one}.''
+  \end{enumerate}
+  
+  \item ``The goal is to learn a policy that chooses actions to maximize long-term reward, based only on this interaction loop, not on a known model of the dynamics.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{4}{Markov Decision Process (MDP): Formal Definition}
+\speaker{Pegah}
+
+\begin{itemize}
+  \item ``Formally, we model the environment as a \textbf{Markov Decision Process}, or MDP.''
+  
+  \item ``An MDP is given by the tuple $(\mathcal{S}, \mathcal{A}, P, r, \gamma, \rho)$ \pron{script-S, script-A, P, r, gamma, rho}:''
+  
+  \item ``$\mathcal{S}$ \pron{script-S} is the state space; $\mathcal{A}$ \pron{script-A} is the action space.''
+  
+  \item ``$P(s' \mid s, a)$ \pron{P of s-prime given s, a} is the transition probability: if we're in state $s$ and take action $a$, this is the distribution over next states $s'$ \pron{s-prime}.''
+  
+  \item ``$r(s,a)$ \pron{r of s, a} is the reward we get for taking action $a$ in state $s$.''
+  
+  \item ``$\gamma$ \pron{gamma} is a discount factor between 0 and 1; it tells us how much we care about future rewards compared to immediate ones.''
+  
+  \item ``$\rho(s)$ \pron{rho of s} is the initial state distribution at time zero.''
+  
+  \item ``A \textbf{policy} $\pi(a \mid s)$ \pron{pi of a given s} is just a conditional probability distribution: it tells us how likely we are to choose each action in each state.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{5}{Trajectory and Return}
+\speaker{Pegah}
+
+\begin{itemize}
+  \item ``If we run a policy in an MDP, we get a \textbf{trajectory}: a sequence of states, actions, and rewards over time.''
+  
+  \item ``You can think of it as: start at $s_0$ \pron{s-zero}, take action $a_0$ \pron{a-zero}, get reward $r_0$ \pron{r-zero}, move to $s_1$ \pron{s-one}, and repeat.''
+  
+  \item ``The quantity we care about is the \textbf{discounted return} of a policy.''
+  
+  \item ``We write:
+  \[
+  J(\pi) = \mathbb{E}_\pi\left[ \sum_{t=0}^{\infty} \gamma^t r(s_t, a_t) \right]
+  \]
+  \pron{J of pi equals E-sub-pi of the sum from t equals zero to infinity of gamma-to-the-t times r of s-t, a-t}.''
+  
+  \item ``So the classical RL objective is: find a policy $\pi^*$ \pron{pi-star} that maximizes this expected discounted return.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{6}{Occupancy Measure: Where the Policy Spends Time}
+\speaker{Pegah}
+
+\begin{itemize}
+  \item ``Now we introduce a slightly different way to look at a policy, which will be crucial later: the \textbf{discounted occupancy measure}.''
+  
+  \item ``For a policy $\pi$ \pron{pi}, we define:
+  \[
+  d_\pi(s,a) = (1-\gamma) \sum_{t=0}^{\infty} \gamma^t \Pr_\pi(s_t = s, a_t = a)
+  \]
+  \pron{d-sub-pi of s, a equals one-minus-gamma times the sum from t equals zero to infinity of gamma-to-the-t times the probability under pi that s-t equals s and a-t equals a}.''
+  
+  \item ``Intuitively, $d_\pi(s,a)$ \pron{d-pi of s, a} is the \textbf{normalized discounted frequency} of visiting state--action pair $(s,a)$ under $\pi$ \pron{pi}.''
+  
+  \item ``The factor $(1-\gamma)$ \pron{one-minus-gamma} just normalizes things so that $\sum_{s,a} d_\pi(s,a) = 1$ \pron{the sum over all s, a of d-pi equals one}; so $d_\pi$ \pron{d-pi} is actually a probability distribution over state--action pairs.''
+  
+  \item ``You can think of $d_\pi$ \pron{d-pi} as a heatmap over the grid of states and actions: bright cells are visited often; dark cells are rarely visited.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{7}{Key Identity: RL is Linear in Occupancy}
+\speaker{Pegah}
+
+\begin{itemize}
+  \item ``The reason occupancy measures are so nice is this \textbf{fundamental identity}.''
+  
+  \item ``If we take the inner product between rewards and occupancy, we get:
+  \[
+  \langle r, d_\pi \rangle = \sum_{s,a} r(s,a)\, d_\pi(s,a)
+  \]
+  \pron{angle-bracket r, d-pi angle-bracket equals the sum over s, a of r of s, a times d-pi of s, a}.''
+  
+  \item ``Using the definition of $d_\pi$ \pron{d-pi}, this equals $(1-\gamma) J(\pi)$ \pron{one-minus-gamma times J of pi}.''
+  
+  \item ``So, \textbf{up to the constant factor} $(1-\gamma)$ \pron{one-minus-gamma}, the RL objective $J(\pi)$ \pron{J of pi} is simply a linear function of the occupancy measure $d_\pi$ \pron{d-pi}.''
+  
+  \item ``This means standard RL is basically: choose a policy whose occupancy puts more weight on high-reward state--action pairs.''
+  
+  \item ``However, many interesting objectives are \textbf{not} linear in $d_\pi$ \pron{d-pi}:''
+  \begin{itemize}
+    \item ``Safety constraints like $\langle c, d_\pi \rangle \le \tau$ \pron{angle-bracket c, d-pi angle-bracket less-than-or-equal-to tau},''
+    \item ``Imitation learning where we try to match an expert occupancy,''
+    \item ``Exploration bonuses like reward plus entropy of $d_\pi$ \pron{d-pi}.''
+  \end{itemize}
+  
+  \item ``That's where \textbf{convex MDPs} come in.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{8}{Why Convex MDPs?}
+\speaker{Pegah}
+
+\begin{itemize}
+  \item ``Linear RL is great if all we care about is maximizing reward.''
+  
+  \item ``But in practice we often care about more structured objectives:''
+  \begin{itemize}
+    \item ``We might want to \textbf{enforce safety} constraints.''
+    \item ``We might want to \textbf{match expert behaviour} in imitation learning.''
+    \item ``We might want to \textbf{encourage exploration} or control risk.''
+  \end{itemize}
+  
+  \item ``Convex MDPs give a clean way to express these goals.''
+  
+  \item ``The high-level idea is: instead of maximizing a linear function of $d_\pi$ \pron{d-pi}, we want to \textbf{minimize a convex function} $f(d_\pi)$ \pron{f of d-pi}.''
+  
+  \item ``So the problem becomes: $\min_\pi f(d_\pi)$ \pron{min over pi of f of d-pi}, where $f$ \pron{f} could include rewards, costs, entropy, and so on.''
+  
+  \item ``The challenge is that optimizing over occupancy measures is hard: the dimension is $|\mathcal{S}||\mathcal{A}|$ \pron{size-of-S times size-of-A}, and the valid occupancies lie in a complicated constrained polytope.''
+  
+  \item ``We can't just feed this to a standard RL algorithm.''
+  
+  \item ``Our approach will be to use \textbf{Fenchel duality} to turn this into a \textbf{min--max game} that looks like ordinary shaped-reward RL.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{9}{Convex MDP: Examples}
+\speaker{Pegah}
+
+\begin{itemize}
+  \item ``Here are a few examples of convex MDP objectives, all expressed as functions of $d$ \pron{d}.''
+  
+  \item ``First, standard RL is actually a very simple special case:
+  \[
+  f(d) = -\langle r, d \rangle
+  \]
+  \pron{f of d equals negative angle-bracket r, d angle-bracket}. This is linear, hence convex.''
+  
+  \item ``Second, \textbf{entropy-regularized RL}:
+  \[
+  f(d) = -\langle r, d \rangle + \alpha \sum_{s,a} d(s,a) \log d(s,a)
+  \]
+  \pron{f of d equals negative angle-bracket r, d angle-bracket plus alpha times the sum over s, a of d of s, a times log of d of s, a}.''
+  \begin{itemize}
+    \item ``The extra term encourages spread-out occupancies---softer, more exploratory policies.''
+  \end{itemize}
+  
+  \item ``Third, a \textbf{constrained safety} objective:
+  \[
+  f(d) = -\langle r, d \rangle + \mu \max\{0, \langle c, d \rangle - \tau\}
+  \]
+  \pron{f of d equals negative angle-bracket r, d angle-bracket plus mu times max of zero and angle-bracket c, d angle-bracket minus tau}.''
+  \begin{itemize}
+    \item ``Here $c$ \pron{c} is a cost function, $\tau$ \pron{tau} is a safety threshold, and $\mu$ \pron{mu} is a fixed penalty weight.''
+  \end{itemize}
+  
+  \item ``All three share the same structure: they're \textbf{convex functions of the occupancy measure}.''
+  
+  \item ``Next, Danielle will show how we apply \textbf{Fenchel duality} to these convex objectives and turn the whole problem into a saddle-point formulation.''
+\end{itemize}
+
+\newpage
+%============================================================================
+\section{Problem Formulation \& Fenchel Duality (Speaker: Danielle)}
+%============================================================================
+
+%----------------------------------------------------------------------------
+\slide{10}{Roadmap (checkpoint)}
+\speaker{Danielle}
+
+\begin{itemize}
+  \item ``Thanks, Pegah. So far we've set up the RL basics and motivated convex MDPs.''
+  
+  \item ``Next, I'll show how we apply \textbf{Fenchel duality} to these convex objectives and turn the whole problem into a saddle-point formulation.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{11}{Fenchel Conjugate: Definition}
+\speaker{Danielle}
+
+\begin{itemize}
+  \item ``We start with the concept of the \textbf{Fenchel conjugate} of a convex function.''
+  
+  \item ``Given a convex function $f: \mathbb{R}^n \to \mathbb{R} \cup \{\infty\}$ \pron{f from R-n to R union infinity}, its conjugate is defined as:
+  \[
+  f^*(y) = \sup_{x \in \mathbb{R}^n} \{ \langle y, x \rangle - f(x) \}
+  \]
+  \pron{f-star of y equals the supremum over x in R-n of angle-bracket y, x angle-bracket minus f of x}.''
+  
+  \item ``Here, $y$ \pron{y} is a dual variable in the same dimension, $\langle y, x \rangle$ \pron{angle-bracket y, x angle-bracket} is the usual dot product, and `sup' \pron{soup / supremum} is the supremum---the least upper bound.''
+  
+  \item ``Intuitively, $f^*(y)$ \pron{f-star of y} measures how large the linear function $\langle y, x \rangle$ \pron{angle-bracket y, x angle-bracket} can be relative to $f(x)$ \pron{f of x}.''
+  
+  \item ``We'll use this conjugate to rewrite our convex objective in a way that exposes a min-max structure.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{12}{Fenchel--Moreau Theorem}
+\speaker{Danielle}
+
+\begin{itemize}
+  \item ``The key result we rely on is the \textbf{Fenchel--Moreau theorem}.''
+  
+  \item ``It says that for any proper, closed, convex function $f$ \pron{f}, you can recover $f$ from its conjugate via:
+  \[
+  f(d) = \sup_y \{ \langle y, d \rangle - f^*(y) \}
+  \]
+  \pron{f of d equals the supremum over y of angle-bracket y, d angle-bracket minus f-star of y}.''
+  
+  \item ``So $f$ is literally the conjugate of its own conjugate: $f = f^{**}$ \pron{f equals f-double-star}.''
+  
+  \item ``Why is this useful for us?''
+  
+  \item ``Because it allows us to turn \textbf{minimizing} $f(d)$ \pron{f of d} into a \textbf{min--max optimization} over $d$ \pron{d} and $y$ \pron{y}, where $y$ lives in the dual space.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{13}{Applying Fenchel Duality to Convex MDPs}
+\speaker{Danielle}
+
+\begin{itemize}
+  \item ``Let's apply this to our convex MDP.''
+  
+  \item ``We start with the problem: $\min_{d \in \mathcal{D}} f(d)$ \pron{min over d in script-D of f of d}, where $\mathcal{D}$ \pron{script-D} is the set of feasible occupancy measures.''
+  
+  \item ``Using the Fenchel--Moreau identity, we can write:
+  \[
+  f(d) = \sup_y \{ \langle y, d \rangle - f^*(y) \}
+  \]
+  \pron{f of d equals sup over y of angle-bracket y, d angle-bracket minus f-star of y}.''
+  
+  \item ``Plugging that in, we get:
+  \[
+  \min_{d \in \mathcal{D}} f(d) = \min_{d \in \mathcal{D}} \sup_y \{ \langle y, d \rangle - f^*(y) \}
+  \]
+  \pron{min over d in script-D of f of d equals min over d in script-D sup over y of angle-bracket y, d angle-bracket minus f-star of y}.''
+  
+  \item ``This gives us a \textbf{convex-concave saddle-point problem}:
+  \[
+  \min_{d \in \mathcal{D}} \max_y \{ \langle y, d \rangle - f^*(y) \}
+  \]
+  \pron{min over d in script-D max over y of angle-bracket y, d angle-bracket minus f-star of y}.''
+  
+  \item ``Under standard convexity and closedness assumptions, solving this saddle-point is equivalent to solving the original convex MDP.''
+  
+  \item ``Finally, we replace $d$ by the occupancy induced by a policy, $d_\pi$ \pron{d-pi}, and obtain the saddle-point formulation we'll actually work with:
+  \[
+  \min_\pi \max_y L(\pi, y), \quad \text{where } L(\pi, y) = \langle y, d_\pi \rangle - f^*(y)
+  \]
+  \pron{min over pi max over y of L of pi, y, where L of pi, y equals angle-bracket y, d-pi angle-bracket minus f-star of y}.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{14}{Two-Player Game Interpretation}
+\speaker{Danielle}
+
+\begin{itemize}
+  \item ``This saddle-point problem can be viewed as a \textbf{two-player game}.''
+  
+  \item ``The objective is:
+  \[
+  \min_\pi \max_y L(\pi, y), \quad \text{with } L(\pi, y) = \langle y, d_\pi \rangle - f^*(y)
+  \]
+  \pron{min over pi max over y of L of pi, y, with L of pi, y equals angle-bracket y, d-pi angle-bracket minus f-star of y}.''
+  
+  \item ``We interpret this as:''
+  \begin{itemize}
+    \item ``The \textbf{policy player} chooses a policy $\pi$ \pron{pi} and wants to \textbf{minimize} $L$ \pron{L}. This is our RL agent.''
+    \item ``The \textbf{dual player} chooses a dual variable $y$ \pron{y} and wants to \textbf{maximize} $L$ \pron{L}. This player shapes the reward signal.''
+  \end{itemize}
+  
+  \item ``At an equilibrium---or saddle point---neither player can unilaterally improve: the policy player has found an optimal policy $\pi^*$ \pron{pi-star}, and the dual player has found an optimal certificate $y^*$ \pron{y-star}.''
+  
+  \item ``This is exactly what we mean by `solving the min--max problem'.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{15}{Visualizing the Saddle Point}
+\speaker{Danielle}
+
+\begin{itemize}
+  \item ``To build some geometric intuition, here's a simple 3D example.''
+  
+  \item ``The surface shows a function $L(d, y)$ \pron{L of d, y} of two variables: think of $d$ \pron{d} on the horizontal axis as the policy-side variable, and $y$ \pron{y} on the other axis as the dual variable.''
+  
+  \item ``The \textbf{red point} is a saddle point.''
+  
+  \item ``If we move along the $d$-direction \pron{d-direction}, keeping $y$ \pron{y} fixed, the red point is a \textbf{minimum} for the policy player.''
+  
+  \item ``If we move along the $y$-direction \pron{y-direction}, keeping $d$ \pron{d} fixed, the red point is a \textbf{maximum} for the dual player.''
+  
+  \item ``So that point is simultaneously `best response' for both players, and that's why it's the solution of the min--max game.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{16}{From Saddle Point to Shaped Reward}
+\speaker{Danielle}
+
+\begin{itemize}
+  \item ``Now, how do we actually minimize over policies in this saddle-point objective?''
+  
+  \item ``For a fixed dual variable $y$ \pron{y}, the policy player's subproblem is:
+  \[
+  \min_\pi \langle y, d_\pi \rangle
+  \]
+  \pron{min over pi of angle-bracket y, d-pi angle-bracket}.''
+  
+  \item ``Using the occupancy definition, we can rewrite this inner product as:
+  \[
+  \langle y, d_\pi \rangle = (1-\gamma) \mathbb{E}_\pi \left[ \sum_{t=0}^{\infty} \gamma^t y(s_t, a_t) \right]
+  \]
+  \pron{angle-bracket y, d-pi angle-bracket equals one-minus-gamma times E-sub-pi of the sum from t equals zero to infinity of gamma-to-the-t times y of s-t, a-t}.''
+  
+  \item ``So minimizing $\langle y, d_\pi \rangle$ \pron{angle-bracket y, d-pi angle-bracket} is equivalent to \textbf{maximizing} expected return with a \textbf{shaped reward}:
+  \[
+  r_y(s,a) = -y(s,a)
+  \]
+  \pron{r-sub-y of s, a equals negative y of s, a}.''
+  
+  \item ``In other words, from the policy's perspective, the dual variable $y$ \pron{y} just defines a new reward function.''
+  
+  \item ``This is our main operational insight: the policy player can use \textbf{standard RL techniques} on a shaped reward $r_y = -y$ \pron{r-sub-y equals negative y}.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{17}{Summary: The Fenchel Dual Reduction}
+\speaker{Danielle}
+
+\begin{itemize}
+  \item ``Let me summarize the reduction so far.''
+  
+  \item ``We started with a convex MDP: $\min_\pi f(d_\pi)$ \pron{min over pi of f of d-pi}.''
+  
+  \item ``Using Fenchel duality, we rewrote it as a saddle-point problem:
+  \[
+  \min_\pi \max_y L(\pi, y)
+  \]
+  \pron{min over pi max over y of L of pi, y}.''
+  
+  \item ``By fixing $y$ \pron{y}, we observed that minimizing over $\pi$ \pron{pi} is equivalent to RL with a shaped reward $r_y = -y$ \pron{r-sub-y equals negative y}.''
+  
+  \item ``This leads to a very simple algorithmic structure:''
+  \begin{enumerate}
+    \item ``A \textbf{dual step}: update $y$ \pron{y} using the gradient of $L$ \pron{L} with respect to $y$ \pron{y}:
+    \[
+    y_{k+1} = y_k + \alpha(\hat{d}_{\pi_k} - \nabla f^*(y_k))
+    \]
+    \pron{y-sub-k-plus-one equals y-sub-k plus alpha times open-paren d-hat-sub-pi-k minus nabla f-star of y-k close-paren}.''
+    
+    \item ``A \textbf{policy step}: run an RL algorithm on the shaped reward $r_{y_k} = -y_k$ \pron{r-sub-y-k equals negative y-k} to get the next policy $\pi_{k+1}$ \pron{pi-sub-k-plus-one}.''
+  \end{enumerate}
+  
+  \item ``So we've reduced the convex MDP to \textbf{alternating between convex optimization in the dual variable and standard RL in the policy}.''
+\end{itemize}
+
+\newpage
+%============================================================================
+\section{Related Work \& Our Method (Speaker: Shervin)}
+%============================================================================
+
+%----------------------------------------------------------------------------
+\slide{18}{Roadmap (checkpoint)}
+\speaker{Shervin}
+
+\begin{itemize}
+  \item ``We've now completed the core mathematical formulation using Fenchel duality.''
+  
+  \item ``Next, I'll talk about the related work that inspired this framework and the specific policy optimizer we use, SPMA.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{19}{Related Work: ``Reward Is Enough''}
+\speaker{Shervin}
+
+\begin{itemize}
+  \item ``The first key paper is `\textit{Reward Is Enough for Convex MDPs}' by Zahavy and co-authors.''
+  
+  \item ``This is the foundational work that introduced the convex-MDP perspective we just summarized.''
+  
+  \item ``They made three main contributions:''
+  \begin{enumerate}
+    \item ``They gave the \textbf{Fenchel dual reduction} from convex MDPs to a saddle-point problem---the exact reduction we use.''
+    
+    \item ``They proposed a \textbf{meta-algorithm}: alternate between updating the policy and updating the dual variable. Any RL algorithm can play the policy role; any online convex optimization algorithm can play the dual role.''
+    
+    \item ``They showed that many existing RL paradigms---imitation learning, constrained RL, entropy-regularized RL---are special cases of convex MDPs.''
+  \end{enumerate}
+  
+  \item ``Our contribution is to \textbf{implement this framework concretely using SPMA} as the policy optimizer, and to compare it against a strong primal--dual baseline.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{20}{Related Work: Softmax Policy Mirror Ascent (SPMA)}
+\speaker{Shervin}
+
+\begin{itemize}
+  \item ``The second key ingredient is \textbf{Softmax Policy Mirror Ascent}, or SPMA, from a recent paper by Asad et al.''
+  
+  \item ``SPMA is a policy optimization algorithm that performs \textbf{mirror ascent in logit space} using the log-sum-exp mirror map.''
+  
+  \item ``In tabular MDPs, they show that SPMA achieves \textbf{linear convergence}, which is faster than the usual sublinear rates of vanilla policy gradient.''
+  
+  \item ``The tabular update rule has the form:
+  \[
+  \pi_{t+1}(a \mid s) = \pi_t(a \mid s) \left[ 1 + \eta A_{\pi_t}(s, a) \right]
+  \]
+  \pron{pi-sub-t-plus-one of a given s equals pi-sub-t of a given s times open-bracket one plus eta times A-sub-pi-t of s, a close-bracket},\\
+  where $A_{\pi_t}(s, a)$ \pron{A-sub-pi-t of s, a} is the advantage function.''
+  
+  \item ``In practice, we use a numerically stable approximation of this update.''
+  
+  \item ``SPMA has a few attractive properties:''
+  \begin{itemize}
+    \item ``It's \textbf{geometry-aware}: the updates are designed to respect the probability simplex.''
+    \item ``There is no explicit per-state normalization step like in some other methods.''
+    \item ``And the paper provides a clean extension to function approximation as a convex classification problem.''
+  \end{itemize}
+  
+  \item ``This makes SPMA a good candidate for the policy player in our convex-MDP framework.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{21}{Related Work: NPG--PD (Our Baseline)}
+\speaker{Shervin}
+
+\begin{itemize}
+  \item ``Our main baseline is the \textbf{Natural Policy Gradient Primal--Dual} method, or NPG--PD, from Ding et al.\ 2020.''
+  
+  \item ``NPG--PD is designed for constrained MDPs with a Lagrangian of the form:
+  \[
+  L(\pi, \lambda) = J_r(\pi) + \lambda(J_c(\pi) - \tau), \quad \text{with } \lambda \ge 0
+  \]
+  \pron{L of pi, lambda equals J-r of pi plus lambda times open-paren J-c of pi minus tau close-paren, with lambda greater-than-or-equal-to zero}.''
+  
+  \item ``On the \textbf{primal side}, it performs \textbf{natural policy gradient ascent} on the policy, using the Fisher information matrix as a geometry.''
+  
+  \item ``On the \textbf{dual side}, it updates the Lagrange multiplier using:
+  \[
+  \lambda_{k+1} = [\lambda_k + \beta(J_c(\pi_k) - \tau)]_+
+  \]
+  \pron{lambda-sub-k-plus-one equals the positive part of lambda-sub-k plus beta times open-paren J-c of pi-k minus tau close-paren},\\
+  which is projected gradient ascent on the constraint violation.''
+  
+  \item ``NPG--PD comes with theoretical guarantees: they show an $\mathcal{O}(1/\sqrt{T})$ \pron{O of one over square-root-T} bound on optimality gap and constraint violation.''
+  
+  \item ``Because it's both principled and relatively strong empirically, we use NPG--PD as our \textbf{comparison point} for Dual--SPMA.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{22}{Roadmap (checkpoint)}
+\speaker{Shervin}
+
+\begin{itemize}
+  \item ``So far, we've seen the convex-MDP theory and the two main building blocks: the Fenchel dual framework from Zahavy et al., and the SPMA policy optimizer.''
+  
+  \item ``Next I'll describe what we actually built: our \textbf{Dual--SPMA method}, occupancy estimators, and the NPG--PD baseline.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{23}{Our Contributions}
+\speaker{Shervin}
+
+\begin{itemize}
+  \item ``Here is a summary of what we contributed in this project.''
+  
+  \item ``First, we implemented a \textbf{complete Dual--SPMA framework}: the outer dual loop plus an SPMA-based policy oracle.''
+  \begin{itemize}
+    \item ``Our implementation supports both entropy-regularized RL and constrained safety CMDPs.''
+  \end{itemize}
+  
+  \item ``Second, we developed \textbf{three different occupancy estimators}:''
+  \begin{itemize}
+    \item ``a simple tabular Monte Carlo estimator,''
+    \item ``a feature-based Monte Carlo estimator,''
+    \item ``and an MLE-style estimator inspired by recent work by Barakat et al.''
+  \end{itemize}
+  
+  \item ``Third, we implemented a \textbf{faithful NPG--PD baseline} so that we could compare on equal footing.''
+  
+  \item ``Finally, we performed an \textbf{empirical comparison} of SPMA vs NPG--PD on constrained safety tasks, focusing on convergence and constraint satisfaction.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{24}{Dual--SPMA Loop: High-Level View}
+\speaker{Shervin}
+
+\begin{itemize}
+  \item ``Here's the high-level structure of our Dual--SPMA algorithm.''
+  
+  \item ``Recall the saddle-point objective:
+  \[
+  L(\pi, y) = \langle y, d_\pi \rangle - f^*(y)
+  \]
+  \pron{L of pi, y equals angle-bracket y, d-pi angle-bracket minus f-star of y}.''
+  
+  \item ``The \textbf{outer loop} updates the dual variable:
+  \[
+  y_{k+1} = y_k + \alpha(\hat{d}_{\pi_k} - \nabla f^*(y_k))
+  \]
+  \pron{y-sub-k-plus-one equals y-sub-k plus alpha times open-paren d-hat-sub-pi-k minus nabla f-star of y-k close-paren}.\\
+  We use an estimated occupancy $\hat{d}_{\pi_k}$ \pron{d-hat-sub-pi-k} from rollouts.''
+  
+  \item ``The \textbf{inner loop} updates the policy: we run $K_{\text{inner}}$ \pron{K-inner} SPMA steps using the shaped reward $r_y = -y$ \pron{r-sub-y equals negative y}.''
+  
+  \item ``Algorithmically, each outer iteration looks like this:''
+  \begin{enumerate}
+    \item ``Run SPMA steps on the current shaped reward to improve the policy.''
+    \item ``Estimate the occupancy of the new policy via Monte Carlo.''
+    \item ``Update the dual variable using this occupancy.''
+  \end{enumerate}
+  
+  \item ``After a fixed number of outer iterations, we return the final policy $\pi_K$ \pron{pi-sub-K}.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{25}{Policy Player: SPMA Actor Loss}
+\speaker{Shervin}
+
+\begin{itemize}
+  \item ``In practice, our SPMA policy update is implemented via a custom \textbf{actor loss}.''
+  
+  \item ``Standard policy gradient uses the loss:
+  \[
+  L_{\text{PG}} = -\mathbb{E}[\log \pi(a \mid s)\, A(s, a)]
+  \]
+  \pron{L-sub-PG equals negative E of log pi of a given s times A of s, a}.''
+  
+  \item ``SPMA adds a `stay close to the old policy' regularizer in logit space.''
+  
+  \item ``Our SPMA loss is:
+  \[
+  L_{\text{SPMA}} = \mathbb{E}\left[ -\Delta \log \pi \cdot A + \frac{1}{\eta}\Big( \exp(\Delta \log \pi) - 1 - \Delta \log \pi \Big) \right]
+  \]
+  \pron{L-sub-SPMA equals E of negative delta-log-pi times A plus one-over-eta times open-paren exp of delta-log-pi minus one minus delta-log-pi close-paren}.''
+  
+  \item ``Here $\Delta \log \pi = \log \pi_{\text{new}}(a \mid s) - \log \pi_{\text{old}}(a \mid s)$ \pron{delta-log-pi equals log-pi-new of a given s minus log-pi-old of a given s} is the change in log-probability, and $\eta$ \pron{eta} is a step-size parameter we select via Armijo line search.''
+  
+  \item ``The exponential term is a kind of KL-like regularizer that penalizes large changes in log-probabilities, giving us a stable, geometry-aware update on the simplex.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{26}{Occupancy Estimation: MC vs MLE}
+\speaker{Shervin}
+
+\begin{itemize}
+  \item ``A critical ingredient in the dual update is the occupancy estimate $\hat{d}_\pi$ \pron{d-hat-sub-pi}.''
+  
+  \item ``Our \textbf{default} is a Monte Carlo estimator in the tabular case:
+  \[
+  \hat{d}_\pi(s, a) = \frac{1-\gamma}{N} \sum_{i=1}^{N} \sum_{t=0}^{T} \gamma^t \mathbf{1}\{s_t^{(i)} = s,\, a_t^{(i)} = a\}
+  \]
+  \pron{d-hat-sub-pi of s, a equals one-minus-gamma over N times the sum over i from 1 to N of the sum over t from 0 to T of gamma-to-the-t times the indicator that s-t-i equals s and a-t-i equals a}.''
+  
+  \item ``This is simple: we just count discounted visits across trajectories.''
+  
+  \item ``The downside is that its variance grows with the number of state--action pairs $|\mathcal{S}||\mathcal{A}|$ \pron{size-of-S times size-of-A}.''
+  
+  \item ``To address this, we also explored an MLE-based estimator inspired by Barakat et al.''
+  
+  \item ``We parametrize a log-linear distribution:
+  \[
+  \lambda_\omega(s, a) \propto \exp(\omega^\top \phi(s, a))
+  \]
+  \pron{lambda-sub-omega of s, a is proportional to exp of omega-transpose phi of s, a}, and fit $\omega$ \pron{omega} by maximizing likelihood on our samples.''
+  
+  \item ``This estimator has the nice property that its error depends on the feature dimension, not directly on $|\mathcal{S}||\mathcal{A}|$ \pron{size-of-S times size-of-A}.''
+  
+  \item ``As a sanity check, in all our experiments we verified that $\sum_{s,a} \hat{d}_\pi(s, a)$ \pron{sum over s, a of d-hat-pi of s, a} stayed close to 1.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{27}{Example: Constrained Safety CMDP}
+\speaker{Shervin}
+
+\begin{itemize}
+  \item ``Let me show how a constrained MDP fits our framework.''
+  
+  \item ``The problem is: maximize reward $J_r(\pi)$ \pron{J-r of pi} subject to $J_c(\pi) \le \tau$ \pron{J-c of pi less-than-or-equal-to tau},
+  where:
+  \[
+  J_r(\pi) = \mathbb{E}_\pi\left[\sum_t \gamma^t r(s_t, a_t)\right], \quad J_c(\pi) = \mathbb{E}_\pi\left[\sum_t \gamma^t c(s_t, a_t)\right]
+  \]
+  \pron{J-r of pi equals E-sub-pi of the sum over t of gamma-to-the-t times r of s-t, a-t; J-c of pi equals E-sub-pi of the sum over t of gamma-to-the-t times c of s-t, a-t}.''
+  
+  \item ``In Dual--SPMA:''
+  \begin{enumerate}
+    \item ``Build dual variable: $y_\lambda(s, a) = \lambda c(s, a) - r(s, a)$ \pron{y-sub-lambda of s, a equals lambda times c of s, a minus r of s, a}.''
+    \item ``Policy sees shaped reward: $r_y = -y = r - \lambda c$ \pron{r-sub-y equals negative y equals r minus lambda c}.''
+    \item ``Run SPMA inner loop on $r_y$ \pron{r-sub-y}.''
+    \item ``Update dual: $\lambda_{k+1} = [\lambda_k + \beta(J_c(\pi_k) - \tau)]_+$ \pron{lambda-sub-k-plus-one equals the positive part of lambda-sub-k plus beta times J-c of pi-k minus tau}.''
+  \end{enumerate}
+  
+  \item ``SPMA and NPG--PD have the \textbf{same dual update}---the only difference is Step 3: SPMA loss vs.\ natural gradient.''
+  
+  \item ``Now Ahmed will present our experimental results.''
+\end{itemize}
+
+\newpage
+%============================================================================
+\section{Experiments \& Conclusion (Speaker: Ahmed)}
+%============================================================================
+
+%----------------------------------------------------------------------------
+\slide{28}{Example: Constrained Safety CMDP}
+\speaker{Ahmed}
+
+\begin{itemize}
+  \item ``Let me show how this looks concretely on a constrained safety problem.''
+  
+  \item ``The CMDP objective is: maximize reward subject to a cost constraint:
+  \[
+  \max_\pi J_r(\pi) \quad \text{such that} \quad J_c(\pi) \le \tau
+  \]
+  \pron{max over pi of J-r of pi, such that J-c of pi is less-than-or-equal-to tau}.''
+  
+  \item ``Here $J_r$ \pron{J-r} and $J_c$ \pron{J-c} are discounted returns of reward and cost respectively.''
+  
+  \item ``In the Dual--SPMA view, we build a dual variable:
+  \[
+  y_\lambda(s, a) = \lambda c(s, a) - r(s, a)
+  \]
+  \pron{y-sub-lambda of s, a equals lambda times c of s, a minus r of s, a}.''
+  
+  \item ``The policy sees the shaped reward:
+  \[
+  r_y = -y_\lambda = r(s, a) - \lambda c(s, a)
+  \]
+  \pron{r-sub-y equals negative y-lambda equals r of s, a minus lambda times c of s, a}.''
+  
+  \item ``We then run the SPMA inner loop on this shaped reward to update the policy.''
+  
+  \item ``Finally, we update the dual variable:
+  \[
+  \lambda_{k+1} = [\lambda_k + \beta(J_c(\pi_k) - \tau)]_+
+  \]
+  \pron{lambda-sub-k-plus-one equals the positive part of lambda-sub-k plus beta times open-paren J-c of pi-k minus tau close-paren}.''
+  
+  \item ``Notice that this dual update is the same as in NPG--PD; \textbf{the main difference is the policy optimizer}: SPMA vs natural gradient.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{29}{Roadmap (checkpoint)}
+\speaker{Ahmed}
+
+\begin{itemize}
+  \item ``We've now described the Dual--SPMA method, the occupancy estimators, and the NPG--PD baseline.''
+  
+  \item ``Next, I'll show you our \textbf{experimental setup and results} on a simple constrained safety task.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{30}{Experimental Setup}
+\speaker{Ahmed}
+
+\begin{itemize}
+  \item ``Our experiments focus on a tabular setting where we can directly visualize occupancies.''
+  
+  \item ``The environment is the classic \textbf{FrozenLake 4$\times$4} gridworld.''
+  
+  \item ``We use deterministic transitions for simplicity.''
+  
+  \item ``Certain states---holes in the lake---are marked as \textbf{unsafe}; taking an action in those states incurs cost $c = 1$ \pron{c equals one}.''
+  
+  \item ``We compare two methods: our \textbf{Dual--SPMA} and the \textbf{NPG--PD} baseline.''
+  
+  \item ``We track several metrics over outer iterations:''
+  \begin{itemize}
+    \item ``$J_r(\pi)$ \pron{J-r of pi}: reward return,''
+    \item ``$J_c(\pi)$ \pron{J-c of pi}: cost return,''
+    \item ``$J_c - \tau$ \pron{J-c minus tau}: constraint violation,''
+    \item ``and the sum of the occupancy estimate, to check that $\sum_{s,a} \hat{d}_\pi(s, a) \approx 1$ \pron{sum over s, a of d-hat-pi of s, a is approximately one}.''
+  \end{itemize}
+  
+  \item ``We set the discount factor to $\gamma = 0.99$ \pron{gamma equals zero-point-nine-nine}, the safety threshold to $\tau = 0.1$ \pron{tau equals zero-point-one}, and run 30 outer iterations with 2048 environment steps per rollout.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{31}{Results: Entropy-Regularized RL}
+\speaker{Ahmed}
+
+\begin{itemize}
+  \item ``First, we tested on entropy-regularized RL---no constraints, just an entropy bonus.''
+  
+  \item ``The left plot shows $L$ \pron{L}, the Lagrangian objective, versus iteration. Both methods decrease it, confirming the dual loop is working.''
+  
+  \item ``The right plot shows the occupancy sum $\sum_{s,a} \hat{d}_\pi(s,a)$ \pron{sum over s, a of d-hat-pi of s, a}. It stays close to 1, which is a sanity check on our estimator.''
+  
+  \item ``Both SPMA and NPG--PD behave similarly here; they're both optimizing the same entropy-regularized objective.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{32}{Results: Constrained Safety CMDP}
+\speaker{Ahmed}
+
+\begin{itemize}
+  \item ``Next, we tested on the constrained safety CMDP---maximize reward while staying below the cost threshold.''
+  
+  \item ``The left plot shows the reward return $J_r(\pi_k)$ \pron{J-r of pi-k} over iterations. Both methods increase reward as the policy improves.''
+  
+  \item ``The right plot shows the constraint violation $J_c(\pi_k) - \tau$ \pron{J-c of pi-k minus tau}. Both methods eventually bring this below zero, meaning the constraint is satisfied.''
+  
+  \item ``We see that Dual--SPMA and NPG--PD reach similar final performance, though their learning curves differ slightly.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{33}{Results: Dual--SPMA vs NPG--PD}
+\speaker{Ahmed}
+
+\begin{itemize}
+  \item ``Now let's compare Dual--SPMA against NPG--PD on the same constrained task.''
+  
+  \item ``The left plot shows the reward return $J_r(\pi_k)$ \pron{J-r of pi-k} versus outer iterations for both methods.''
+  
+  \item ``We find that both ultimately achieve similar reward once the constraint is satisfied.''
+  
+  \item ``The right plot shows the constraint violation $J_c(\pi_k) - \tau$ \pron{J-c of pi-k minus tau} for each method.''
+  
+  \item ``Both methods eventually bring the violation close to zero, but they behave a bit differently.''
+  
+  \item ``Empirically, we find that \textbf{SPMA} tends to take larger, geometry-aware steps---sometimes converging faster but being slightly more sensitive to hyperparameters.''
+  
+  \item ``NPG--PD is often smoother but requires careful tuning of the step size $\beta$ \pron{beta}.''
+  
+  \item ``Overall, Dual--SPMA is competitive with NPG--PD on these tasks, which supports our claim that SPMA is a viable policy optimizer in the convex-MDP framework.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{34}{Results: Occupancy Heatmaps}
+\speaker{Ahmed}
+
+\begin{itemize}
+  \item ``To make the policies more interpretable, we visualize their occupancies as heatmaps over the grid.''
+  
+  \item ``On the \textbf{left}, we show the occupancy of an \textbf{unconstrained} policy trained only for reward.''
+  
+  \item ``You can see that it explores the map more broadly, including states that correspond to holes or unsafe positions.''
+  
+  \item ``On the \textbf{right}, we show the occupancy of a \textbf{safety-constrained} policy from Dual--SPMA.''
+  
+  \item ``This policy clearly avoids unsafe states: their occupancy is very low or zero.''
+  
+  \item ``These pictures confirm that the constraint is not just satisfied numerically, but also reflected in the agent's behaviour.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{35}{Takeaways \& Limitations}
+\speaker{Ahmed}
+
+\begin{itemize}
+  \item ``Let me summarize the main takeaways and limitations.''
+  
+  \item ``Our high-level \textbf{recipe} is:
+  \[
+  \text{Convex MDP} \Rightarrow \text{Fenchel dual saddle-point game} \Rightarrow \text{SPMA-based shaped-reward RL}
+  \]''
+  
+  \item ``On top of that, we built:''
+  \begin{itemize}
+    \item ``Dual--SPMA loops for entropy-regularized RL and constrained safety,''
+    \item ``a strong NPG--PD baseline,''
+    \item ``and several occupancy estimators.''
+  \end{itemize}
+  
+  \item ``In our experiments, Dual--SPMA is stable, learns to satisfy constraints, and performs competitively with NPG--PD on a tabular CMDP.''
+  
+  \item ``In terms of \textbf{limitations}:''
+  \begin{itemize}
+    \item ``All experiments are in low-dimensional tabular settings; we haven't pushed to large continuous environments yet.''
+    \item ``Our MLE estimator still needs more stress-testing on high-dimensional tasks.''
+    \item ``And we haven't fully explored hyperparameter sensitivity, especially for SPMA's step sizes.''
+  \end{itemize}
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{36}{Future Work}
+\speaker{Ahmed}
+
+\begin{itemize}
+  \item ``There are several interesting directions for future work.''
+  
+  \item ``First, \textbf{scaling up}: we'd like to test Dual--SPMA on larger CMDPs and safety benchmarks, such as MuJoCo tasks with continuous states and actions.''
+  
+  \item ``Second, \textbf{better occupancy estimation}: in particular, evaluating the MLE estimator more thoroughly in high-dimensional settings and comparing its variance to Monte Carlo.''
+  
+  \item ``Third, exploring \textbf{more convex objectives} beyond safety and entropy: for example, risk-sensitive criteria or imitation learning objectives defined as convex functions of occupancy.''
+  
+  \item ``Finally, on the theory side, deriving \textbf{convergence rates} and \textbf{sample complexity bounds} for Dual--SPMA, and comparing them directly to methods like NPG--PD.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{37}{Q\&A}
+\speaker{Whoever is fielding questions}
+
+\begin{itemize}
+  \item ``Thanks for listening---that concludes our presentation.''
+  
+  \item ``We're happy to take questions.''
+  
+  \item (If needed, you can remind the audience: ``Pegah covers background and motivation; Danielle covers the Fenchel dual formulation; Shervin covers related work and the method; Ahmed covers experiments and conclusions.'')
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\slide{38}{References}
+\speaker{Only if someone asks for a specific citation}
+
+\begin{itemize}
+  \item ``These are the main references we relied on: Zahavy et al.\ for convex MDPs, Asad et al.\ for SPMA, Ding et al.\ for NPG--PD, and Barakat et al.\ for the MLE-style occupancy estimator.''
+\end{itemize}
+
+\newpage
+%============================================================================
+\section{Backup Slides}
+%============================================================================
+
+%----------------------------------------------------------------------------
+\subsection*{Backup Slide 39 --- Flow Constraints (Occupancy Polytope)}
+\textit{Use only if asked ``what is $\mathcal{D}$?'' or ``how do you define valid occupancy measures?''}
+
+\begin{itemize}
+  \item ``This slide shows the \textbf{Bellman flow constraints} that define the occupancy set $\mathcal{D}$ \pron{script-D}.''
+  
+  \item ``For each state $s$ \pron{s}, the total occupancy flowing into $s$ must equal the initial distribution plus the discounted flow from other states.''
+  
+  \item ``This defines a convex polytope in $\mathbb{R}^{|\mathcal{S}||\mathcal{A}|}$ \pron{R to the size-of-S times size-of-A}.''
+  
+  \item ``So $\mathcal{D}$ \pron{script-D} is convex, which is what we need for the convex MDP formulation.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\subsection*{Backup Slide 40 --- Entropy-Regularized Conjugate}
+\textit{Use if someone asks ``where does $f^*(y)$ come from in the entropy case?''}
+
+\begin{itemize}
+  \item ``Here we show the explicit conjugate for the entropy-regularized objective.''
+  
+  \item ``If $f(d) = -\langle r, d \rangle + \alpha \sum d \log d$ \pron{f of d equals negative angle-bracket r, d angle-bracket plus alpha times sum of d log d}, then the conjugate is:
+  \[
+  f^*(y) = \alpha \log \sum_{s,a} \exp\left( \frac{y(s,a) + r(s,a)}{\alpha} \right)
+  \]
+  \pron{f-star of y equals alpha times log of the sum over s, a of exp of open-paren y of s, a plus r of s, a close-paren over alpha}.''
+  
+  \item ``The gradient of this conjugate is simply a softmax over $y + r$ \pron{y plus r} scaled by $\alpha$ \pron{alpha}.''
+  
+  \item ``This is very convenient because it makes $\nabla f^*(y)$ \pron{nabla f-star of y} easy to compute in the dual update.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\subsection*{Backup Slide 41 --- SPMA with Function Approximation}
+\textit{Use if asked ``how does SPMA work with neural networks?''}
+
+\begin{itemize}
+  \item ``In function approximation, SPMA can be interpreted as solving a \textbf{convex KL minimization} problem in the policy space.''
+  
+  \item ``Given an intermediate policy $\pi_{t+1/2}$ \pron{pi-sub-t-plus-one-half}, the next parameters $\theta$ \pron{theta} minimize a weighted KL divergence between $\pi_{t+1/2}$ \pron{pi-sub-t-plus-one-half} and $\pi_\theta$ \pron{pi-sub-theta}, with weights given by state occupancies.''
+  
+  \item ``This is equivalent to softmax classification with states as inputs and actions as labels.''
+  
+  \item ``So SPMA extends naturally to neural policies as a sequence of convex classification problems.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\subsection*{Backup Slide 42 --- Algorithm Pseudocode}
+\textit{Use if someone asks for the precise algorithm}
+
+\begin{itemize}
+  \item ``This is the full pseudocode of Dual--SPMA.''
+  
+  \item ``We initialize a dual variable $y_1$ \pron{y-sub-one} and a policy $\pi_1$ \pron{pi-sub-one}.''
+  
+  \item ``For each outer iteration $k$ \pron{k}:''
+  \begin{enumerate}
+    \item ``We run $K_{\text{inner}}$ \pron{K-inner} SPMA updates on shaped reward $r_{y_k}$ \pron{r-sub-y-k} to generate $\pi_{k+1}$ \pron{pi-sub-k-plus-one}.''
+    \item ``We estimate the occupancy of $\pi_{k+1}$ \pron{pi-sub-k-plus-one} from trajectories.''
+    \item ``We update the dual variable using the gradient step:
+    \[
+    y_{k+1} = y_k + \alpha(\hat{d}_{\pi_{k+1}} - \nabla f^*(y_k))
+    \]
+    \pron{y-sub-k-plus-one equals y-sub-k plus alpha times open-paren d-hat-sub-pi-k-plus-one minus nabla f-star of y-k close-paren}.''
+  \end{enumerate}
+  
+  \item ``After $K$ \pron{K} outer iterations we return the final policy.''
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\subsection*{Backup Slide 43 --- Notation Summary}
+\textit{Use if someone is confused about symbols}
+
+\begin{itemize}
+  \item ``This slide is just a notation table.''
+  
+  \item ``We list the state and action sets, policy $\pi(a \mid s)$ \pron{pi of a given s}, reward $r$ \pron{r}, cost $c$ \pron{c}, discount $\gamma$ \pron{gamma}, occupancy $d_\pi(s,a)$ \pron{d-pi of s, a}, the return $J(\pi)$ \pron{J of pi}, the convex objective $f$ \pron{f}, its conjugate $f^*$ \pron{f-star}, the dual variable $y$ \pron{y}, the CMDP multiplier $\lambda$ \pron{lambda}, the safety threshold $\tau$ \pron{tau}, and the step sizes $\eta$ \pron{eta} and $\alpha$ \pron{alpha}.''
+  
+  \item ``It's here purely as a reference if any symbol in the earlier slides is unclear.''
+\end{itemize}
+
+\end{document}

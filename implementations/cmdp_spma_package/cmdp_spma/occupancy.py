@@ -51,7 +51,7 @@ class FeatureEstimator:
         self.sum = np.zeros(d, dtype=np.float64)
         self.N = 0
     def reset(self):
-        """Reset the estimator for a new outer iteration."""
+        """Reset the estimator for a new outer iteration.""" // i
         self.sum.fill(0.0)
         self.N = 0
 
